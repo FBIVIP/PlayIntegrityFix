@@ -1,0 +1,10 @@
+out
+.gradle
+.kotlin
+app/build
+build
+native-certgen/target
+app/src/main/jniLibs
+
+# Internal planning/strategy plane, never publish
+.omc/
