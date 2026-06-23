@@ -184,7 +184,7 @@ androidComponents {
                 }
                 from(project.layout.buildDirectory.dir(nativeLibsDir)) {
                     into("lib")
-                    include("**/libinject.so", "**/libTEESimulator.so", "**/libsupervisor.so", "**/libcertgen.so")
+                    include("**/libinject.so", "**/libintegrityfateh7.so", "**/libsupervisor.so", "**/libcertgen.so")
                 }
 
                 // Now, copy and process the files from 'module' directory.

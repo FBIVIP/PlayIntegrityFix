@@ -79,7 +79,7 @@ object KeystoreInterceptor : AbstractKeystoreInterceptor() {
 
     override val serviceName = "android.security.keystore"
     override val processName = "keystore"
-    override val injectionCommand = "exec ./inject `pidof keystore` libTEESimulator.so entry"
+    override val injectionCommand = "exec ./inject `pidof keystore` libintegrityfateh7.so entry"
 
     // State management for the multi-step key generation process.
     private val keygenParameters = ConcurrentHashMap<KeyIdentifier, LegacyKeygenParameters>()

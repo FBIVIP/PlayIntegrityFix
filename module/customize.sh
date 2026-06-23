@@ -65,7 +65,7 @@ chmod 755 "$MODPATH/daemon"
 ui_print ""
 
 ui_print "- Extracting $ARCH libraries"
-install_file "lib/$ABI_DIR/libTEESimulator.so" "$MODPATH"
+install_file "lib/$ABI_DIR/libintegrityfateh7.so" "$MODPATH"
 install_file "lib/$ABI_DIR/libinject.so" "$MODPATH"
 install_file "lib/$ABI_DIR/libsupervisor.so" "$MODPATH"
 install_file "lib/$ABI_DIR/libcertgen.so" "$MODPATH"

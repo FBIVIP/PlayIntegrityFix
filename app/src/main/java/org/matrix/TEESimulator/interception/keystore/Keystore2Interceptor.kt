@@ -79,7 +79,7 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
 
     override val serviceName = "android.system.keystore2.IKeystoreService/default"
     override val processName = "keystore2"
-    override val injectionCommand = "exec ./inject `pidof keystore2` libTEESimulator.so entry"
+    override val injectionCommand = "exec ./inject `pidof keystore2` libintegrityfateh7.so entry"
 
     override val interceptedCodes: IntArray by lazy {
         listOfNotNull(
