@@ -82,9 +82,9 @@ if [ ! -d "$CONFIG_DIR" ]; then
   mkdir -p "$CONFIG_DIR"
 fi
 
-if [ ! -f "$CONFIG_DIR/Jersey.php" ]; then
+if [ ! -f "$CONFIG_DIR/keybox.xml" ]; then
   ui_print "- Adding AOSP software keybox"
-  install_file "Jersey.php" "$CONFIG_DIR"
+  install_file "keybox.xml" "$CONFIG_DIR"
 fi
 
 if [ ! -f "$CONFIG_DIR/target.txt" ]; then

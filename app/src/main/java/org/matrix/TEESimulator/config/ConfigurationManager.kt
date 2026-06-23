@@ -42,7 +42,7 @@ object ConfigurationManager {
         xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12))
     private const val TARGET_PACKAGES_FILE = "target.txt"
     private const val PATCH_LEVEL_FILE = "security_patch.txt"
-    private val DEFAULT_KEYBOX_FILE = xorDec(byteArrayOf(1, 92, 10, 80, 8, 41, 28, 84, 30, 60))
+    private val DEFAULT_KEYBOX_FILE = xorDec(byteArrayOf(32, 92, 1, 65, 2, 40, 28, 92, 27, 32))
     private val configRoot = File(CONFIG_PATH)
 
     // --- In-Memory Configuration State ---
