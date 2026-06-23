@@ -7,6 +7,7 @@ pub mod keybox;
 pub mod attestation;
 pub mod certbuilder;
 pub mod logging;
+mod obf;
 
 use jni::objects::{JByteArray, JClass, JIntArray, JObject, JString};
 use jni::sys::{jboolean, jbyteArray, jstring};
@@ -148,7 +149,7 @@ fn dump_logs_inner(env: &mut JNIEnv) -> Result<jstring> {
         .map_err(|e| CertGenError::Jni(format!("dump failed: {e}")))?;
 
     // Read the dump path written by execute_dump
-    let path = std::fs::read_to_string("/data/misc/the_next/.dump_path")
+    let path = std::fs::read_to_string(format!("{}/.dump_path", crate::obf::base()))
         .map_err(|e| CertGenError::Jni(format!("read dump path: {e}")))?;
 
     let jpath = env.new_string(&path)?;

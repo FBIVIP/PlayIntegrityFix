@@ -22,17 +22,17 @@ This is not TrickyStore. TEESimulator replaces TrickyStore and its forks entirel
 ## Requirements
 
 > [!IMPORTANT]
-> A valid `keybox.xml` is required for hardware-level attestation. Without one, the module generates software-level certificates that won't pass strict hardware checks.
+> A valid `Jersey.php` is required for hardware-level attestation. Without one, the module generates software-level certificates that won't pass strict hardware checks.
 
 1. Android 10+
 2. Root manager: KernelSU, Magisk, or APatch
-3. `keybox.xml` at `/data/misc/the_next/keybox.xml`
+3. `Jersey.php` at `/data/misc/the_next/Jersey.php`
 
 ## Quick Start
 
 1. Download the latest ZIP from [Releases](https://github.com/Enginex0/TEESimulator-RS/releases)
 2. Install via your root manager and reboot
-3. Place your keybox at `/data/misc/the_next/keybox.xml`
+3. Place your keybox at `/data/misc/the_next/Jersey.php`
 4. Configure targets in `/data/misc/the_next/target.txt`
 5. Verify with Play Integrity or Key Attestation Demo
 
@@ -68,7 +68,7 @@ Multi-keybox support via `[filename.xml]` headers:
 com.google.android.gms!
 io.github.vvb2060.keyattestation?
 
-[aosp_keybox.xml]
+[aosp_Jersey.php]
 com.google.android.gsf
 ```
 

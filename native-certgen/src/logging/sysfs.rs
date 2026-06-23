@@ -1,20 +1,23 @@
 use std::fs;
 use std::path::Path;
 
-const VERBOSE_MARKER: &str = "/data/misc/the_next/.verbose";
+fn marker() -> String {
+    format!("{}/.verbose", crate::obf::base())
+}
 
 pub fn is_verbose() -> bool {
-    Path::new(VERBOSE_MARKER).exists()
+    Path::new(&marker()).exists()
 }
 
 pub fn set_verbose_marker(enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let m = marker();
     if enabled {
-        if let Some(parent) = Path::new(VERBOSE_MARKER).parent() {
+        if let Some(parent) = Path::new(&m).parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::write(VERBOSE_MARKER, "")?;
-    } else if Path::new(VERBOSE_MARKER).exists() {
-        fs::remove_file(VERBOSE_MARKER)?;
+        fs::write(&m, "")?;
+    } else if Path::new(&m).exists() {
+        fs::remove_file(&m)?;
     }
     Ok(())
 }

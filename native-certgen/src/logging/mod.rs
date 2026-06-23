@@ -6,15 +6,14 @@ pub mod dump;
 use std::path::Path;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-const VERBOSE_MARKER: &str = "/data/misc/the_next/.verbose";
-
 pub fn init(
     verbose_flag: bool,
     log_dir: &str,
     max_size_mb: u64,
     max_files: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let verbose = verbose_flag || Path::new(VERBOSE_MARKER).exists();
+    let verbose =
+        verbose_flag || Path::new(&format!("{}/.verbose", crate::obf::base())).exists();
 
     let (max_size, max_files) = if verbose {
         (5 * 1024 * 1024, 5)

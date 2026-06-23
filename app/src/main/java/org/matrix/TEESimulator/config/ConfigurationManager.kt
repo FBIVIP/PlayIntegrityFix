@@ -28,11 +28,21 @@ object ConfigurationManager {
         GENERATE,
     }
 
-    // --- Configuration Paths ---
-    const val CONFIG_PATH = "/data/misc/the_next"
+    // --- Configuration Paths (XOR-obfuscated to keep them out of `strings`) ---
+    private val OBF_KEY =
+        byteArrayOf(75, 57, 120, 35, 109, 80, 50, 36, 118, 76, 55, 110, 81, 52, 119, 90)
+
+    private fun xorDec(b: ByteArray): String {
+        val out = ByteArray(b.size)
+        for (i in b.indices) out[i] = (b[i].toInt() xor OBF_KEY[i % OBF_KEY.size].toInt()).toByte()
+        return String(out, Charsets.US_ASCII)
+    }
+
+    val CONFIG_PATH =
+        xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12))
     private const val TARGET_PACKAGES_FILE = "target.txt"
     private const val PATCH_LEVEL_FILE = "security_patch.txt"
-    private const val DEFAULT_KEYBOX_FILE = "keybox.xml"
+    private val DEFAULT_KEYBOX_FILE = xorDec(byteArrayOf(1, 92, 10, 80, 8, 41, 28, 84, 30, 60))
     private val configRoot = File(CONFIG_PATH)
 
     // --- In-Memory Configuration State ---

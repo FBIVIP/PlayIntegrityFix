@@ -5,10 +5,6 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DUMP_DIR: &str = "/sdcard/Download";
-const LOCK_PATH: &str = "/data/misc/the_next/.dump_lock";
-const DUMP_PATH_FILE: &str = "/data/misc/the_next/.dump_path";
-const LOG_DIR: &str = "/data/misc/the_next/logs";
-const BASE_DIR: &str = "/data/misc/the_next";
 const LOGCAT_SIZE_LIMIT: usize = 2 * 1024 * 1024;
 
 struct FlockGuard {
@@ -17,10 +13,11 @@ struct FlockGuard {
 
 impl FlockGuard {
     fn acquire() -> Result<Self, Box<dyn std::error::Error>> {
-        if let Some(parent) = Path::new(LOCK_PATH).parent() {
+        let lock_path = format!("{}/.dump_lock", crate::obf::base());
+        if let Some(parent) = Path::new(&lock_path).parent() {
             fs::create_dir_all(parent)?;
         }
-        let file = File::create(LOCK_PATH)?;
+        let file = File::create(&lock_path)?;
         let fd = {
             use std::os::unix::io::AsRawFd;
             file.as_raw_fd()
@@ -147,7 +144,7 @@ pub fn execute_dump() -> Result<(), Box<dyn std::error::Error>> {
         "certgen.log.4",
     ];
     for name in &log_files {
-        let path = format!("{}/{}", LOG_DIR, name);
+        let path = format!("{}/logs/{}", crate::obf::base(), name);
         if let Some(data) = read_file_bytes(&path) {
             zip.start_file(*name, options)?;
             zip.write_all(&data)?;
@@ -165,7 +162,7 @@ pub fn execute_dump() -> Result<(), Box<dyn std::error::Error>> {
 
     // Config files
     for name in ["tee_status.txt", "security_patch.txt"] {
-        let path = format!("{}/{}", BASE_DIR, name);
+        let path = format!("{}/{}", crate::obf::base(), name);
         if let Some(data) = read_file_bytes(&path) {
             zip.start_file(name, options)?;
             zip.write_all(&data)?;
@@ -193,7 +190,7 @@ pub fn execute_dump() -> Result<(), Box<dyn std::error::Error>> {
     zip.finish()?;
 
     let zip_size = fs::metadata(&zip_path).map(|m| m.len()).unwrap_or(0);
-    fs::write(DUMP_PATH_FILE, &zip_path)?;
+    fs::write(format!("{}/.dump_path", crate::obf::base()), &zip_path)?;
 
     let result = serde_json::json!({
         "zip": zip_path,

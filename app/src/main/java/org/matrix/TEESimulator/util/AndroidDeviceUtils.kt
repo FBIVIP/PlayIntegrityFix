@@ -184,7 +184,17 @@ object AndroidDeviceUtils {
     private fun generateRandomBytes(size: Int): ByteArray =
         ByteArray(size).also { ThreadLocalRandom.current().nextBytes(it) }
 
-    private val PERSIST_DIR = File("/data/misc/the_next")
+    private val OBF_KEY =
+        byteArrayOf(75, 57, 120, 35, 109, 80, 50, 36, 118, 76, 55, 110, 81, 52, 119, 90)
+
+    private fun xorDec(b: ByteArray): String {
+        val out = ByteArray(b.size)
+        for (i in b.indices) out[i] = (b[i].toInt() xor OBF_KEY[i % OBF_KEY.size].toInt()).toByte()
+        return String(out, Charsets.US_ASCII)
+    }
+
+    private val PERSIST_DIR =
+        File(xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12)))
 
     private fun fileForProperty(propertyName: String): File = when (propertyName) {
         "ro.boot.vbmeta.digest" -> File(PERSIST_DIR, "boot_hash.bin")
