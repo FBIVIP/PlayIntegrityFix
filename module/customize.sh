@@ -48,7 +48,7 @@ install_file() {
 
 # --- Installation ---
 ui_print "- Extracting module files"
-for file in customize.sh module.prop service.sh sepolicy.rule daemon action.sh action_i18n.sh uninstall.sh; do
+for file in customize.sh module.prop service.sh post-fs-data.sh common_func.sh rom_spoof_block.sh sepolicy.rule daemon action.sh action_i18n.sh uninstall.sh; do
   install_file "$file" "$MODPATH"
 done
 

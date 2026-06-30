@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>integrityfateh7</title>
+<style>
+  :root{
+    --bg:#070B14;
+    --bg2:#0A1020;
+    --surface:#0F1729;
+    --surface2:#121C33;
+    --line:#1E2C49;
+    --cyan:#38BDF8;
+    --azure:#3B82F6;
+    --glow:rgba(56,189,248,.35);
+    --text:#E6EEFA;
+    --muted:#8295B2;
+    --ok:#22C55E;
+    --okbg:rgba(34,197,94,.12);
+    --err:#F0556B;
+    --errbg:rgba(240,85,107,.12);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(59,130,246,.18), transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, rgba(56,189,248,.10), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    overflow-x:hidden;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  /* subtle grid signature */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.4;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:42px 42px;
+    mask-image:radial-gradient(circle at 50% 30%,#000,transparent 75%);
+    -webkit-mask-image:radial-gradient(circle at 50% 30%,#000,transparent 75%);
+  }
+  .app{position:relative;z-index:1;max-width:560px;margin:0 auto;padding:22px 18px 40px;}
+
+  /* header */
+  .top{display:flex;align-items:center;gap:12px;margin:6px 2px 26px;}
+  .badge{
+    width:46px;height:46px;border-radius:13px;flex:0 0 auto;
+    display:grid;place-items:center;
+    background:linear-gradient(145deg,#10233f,#0a1730);
+    border:1px solid var(--line);
+    box-shadow:0 0 0 1px rgba(56,189,248,.08),0 8px 24px -12px var(--glow);
+  }
+  .badge svg{width:24px;height:24px}
+  .brand h1{margin:0;font-size:18px;letter-spacing:.3px;font-weight:700;}
+  .brand .sub{margin:2px 0 0;font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.5px;}
+  .live{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);font-family:var(--mono);}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px 1px var(--cyan);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* views */
+  .view{display:none;animation:fade .28s ease both;}
+  .view.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);margin:0 2px 14px;}
+
+  /* home cards */
+  .grid{display:grid;gap:14px;}
+  .card{
+    position:relative;text-align:left;cursor:pointer;
+    background:linear-gradient(160deg,var(--surface2),var(--surface));
+    border:1px solid var(--line);border-radius:18px;padding:20px 18px;
+    display:flex;align-items:center;gap:16px;width:100%;color:inherit;
+    transition:transform .15s ease,border-color .2s ease,box-shadow .2s ease;
+  }
+  .card:active{transform:scale(.985);}
+  .card:hover,.card:focus-visible{border-color:rgba(56,189,248,.5);box-shadow:0 14px 40px -22px var(--glow);outline:none;}
+  .card .ic{
+    width:52px;height:52px;border-radius:14px;flex:0 0 auto;display:grid;place-items:center;
+    background:radial-gradient(120% 120% at 30% 20%,rgba(56,189,248,.22),rgba(59,130,246,.06));
+    border:1px solid rgba(56,189,248,.25);
+  }
+  .card .ic svg{width:26px;height:26px}
+  .card h3{margin:0;font-size:16px;font-weight:650;}
+  .card p{margin:4px 0 0;font-size:12.5px;color:var(--muted);line-height:1.4;}
+  .card .arr{margin-left:auto;color:var(--muted);flex:0 0 auto;}
+
+  /* sub view */
+  .back{
+    display:inline-flex;align-items:center;gap:7px;background:none;border:none;color:var(--muted);
+    font-family:var(--mono);font-size:13px;padding:6px 2px;margin-bottom:14px;cursor:pointer;
+  }
+  .back:active{color:var(--text);}
+  .panel{
+    background:linear-gradient(160deg,var(--surface2),var(--surface));
+    border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;
+  }
+  .panel h2{margin:0 0 4px;font-size:15px;}
+  .panel .hint{margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.5;}
+  label.fld{display:block;font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.5px;margin:0 0 7px;text-transform:uppercase;}
+  textarea{
+    width:100%;min-height:150px;resize:vertical;background:#070C18;color:var(--text);
+    border:1px solid var(--line);border-radius:12px;padding:13px;font-family:var(--mono);font-size:12.5px;
+    line-height:1.5;outline:none;transition:border-color .2s;
+  }
+  textarea:focus{border-color:rgba(56,189,248,.55);}
+  .row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .btn{
+    flex:1 1 auto;min-width:128px;border:1px solid var(--line);border-radius:12px;padding:13px 14px;
+    background:#0C1424;color:var(--text);font-size:13.5px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:all .18s;font-family:var(--sans);
+  }
+  .btn svg{width:17px;height:17px}
+  .btn:active{transform:scale(.97);}
+  .btn.ghost:hover{border-color:rgba(56,189,248,.45);}
+  .btn.primary{
+    background:linear-gradient(135deg,var(--cyan),var(--azure));border:none;color:#04101f;font-weight:700;
+    box-shadow:0 10px 30px -12px var(--glow);
+  }
+  .btn.primary:hover{filter:brightness(1.06);}
+  .divider{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-family:var(--mono);font-size:11px;}
+  .divider::before,.divider::after{content:"";height:1px;flex:1;background:var(--line);}
+
+  /* status banner */
+  .status{display:none;margin-top:14px;border-radius:12px;padding:12px 14px;font-size:13px;font-weight:600;
+    align-items:flex-start;gap:10px;line-height:1.45;}
+  .status.show{display:flex;animation:fade .25s ease both;}
+  .status.fadeout{display:flex;animation:fadeOut .3s ease both;}
+  @keyframes fadeOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-6px)}}
+  .status.ok{background:var(--okbg);color:var(--ok);border:1px solid rgba(34,197,94,.3);}
+  .status.err{background:var(--errbg);color:var(--err);border:1px solid rgba(240,85,107,.3);}
+  .status svg{width:18px;height:18px;flex:0 0 auto;margin-top:1px;}
+  .status .m small{display:block;font-weight:500;opacity:.85;font-family:var(--mono);font-size:11px;margin-top:4px;word-break:break-all;}
+
+  /* terminal output */
+  .term{margin-top:12px;background:#05090F;border:1px solid var(--line);border-radius:12px;
+    padding:12px;font-family:var(--mono);font-size:11.5px;color:#9FE6C4;white-space:pre-wrap;
+    word-break:break-word;max-height:200px;overflow:auto;display:none;}
+  .term.show{display:block;}
+  .term .c{color:var(--cyan);}
+
+  .filename{font-family:var(--mono);font-size:11.5px;color:var(--cyan);margin-top:9px;display:none;word-break:break-all;}
+  .filename.show{display:block;}
+  input[type=file]{display:none;}
+  .foot{text-align:center;color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.5px;margin-top:26px;opacity:.7;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- header -->
+  <header class="top">
+    <div class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2l8 4v5c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V6l8-4z"/>
+        <path d="M9 12l2 2 4-4"/>
+      </svg>
+    </div>
+    <div class="brand">
+      <h1>integrityfateh7</h1>
+      <p class="sub">PLATINUM&nbsp;PRO&nbsp;ENGINE</p>
+    </div>
+    <div class="live"><span class="dot"></span>ROOT</div>
+  </header>
+
+  <!-- HOME -->
+  <section id="home" class="view active">
+    <p class="eyebrow">// control panel</p>
+    <div class="grid">
+      <button class="card" onclick="go('keybox')">
+        <span class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="15" r="4"/><path d="M10.8 12.2L20 3"/><path d="M16.5 6.5l2.5 2.5"/><path d="M6.6 14.2h.01"/>
+          </svg>
+        </span>
+        <div>
+          <h3>Upload Keybox</h3>
+          <p>Install your keybox manually — paste it or pick a file.</p>
+        </div>
+        <span class="arr">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </span>
+      </button>
+
+      <button class="card" onclick="go('pif')">
+        <span class="ic">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/>
+          </svg>
+        </span>
+        <div>
+          <h3>Update pif.json</h3>
+          <p>Run the auto updater or load a fingerprint manually.</p>
+        </div>
+        <span class="arr">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </span>
+      </button>
+    </div>
+    <p class="foot">by fateh7 · t.me/keybox_xml</p>
+  </section>
+
+  <!-- KEYBOX -->
+  <section id="keybox" class="view">
+    <button class="back" onclick="go('home')">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Back
+    </button>
+    <p class="eyebrow">// keybox · manual install</p>
+    <div class="panel">
+      <h2>Paste your keybox</h2>
+      <p class="hint">Paste the full keybox XML below, or choose a <b>.xml</b> file from your device. Only XML is accepted.</p>
+      <label class="fld" for="kbText">keybox.xml</label>
+      <textarea id="kbText" placeholder="&lt;?xml version=&quot;1.0&quot;?&gt;&#10;&lt;AndroidAttestation&gt; ... &lt;/AndroidAttestation&gt;"></textarea>
+      <div class="filename" id="kbFile"></div>
+      <div class="row">
+        <button class="btn ghost" onclick="document.getElementById('kbPick').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          Choose from device
+        </button>
+        <button class="btn ghost" onclick="clearKeybox()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Clear
+        </button>
+        <button class="btn primary" onclick="saveKeybox()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          Save
+        </button>
+      </div>
+      <input type="file" id="kbPick" accept=".xml,text/xml,application/xml" />
+      <div class="status" id="kbStatus"></div>
+    </div>
+  </section>
+
+  <!-- PIF -->
+  <section id="pif" class="view">
+    <button class="back" onclick="go('home')">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Back
+    </button>
+    <p class="eyebrow">// pif.json</p>
+
+    <div class="panel">
+      <h2>Auto update</h2>
+      <p class="hint">Fetches a fresh fingerprint by running the module updater script.</p>
+      <button class="btn primary" style="width:100%" onclick="autoPif()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+        Run auto update
+      </button>
+      <div class="term" id="pifTerm"></div>
+      <div class="status" id="pifAutoStatus"></div>
+    </div>
+
+    <div class="divider">OR</div>
+
+    <div class="panel">
+      <h2>Manual update</h2>
+      <p class="hint">Paste your fingerprint JSON or pick a <b>.json</b> file. Saved to the active config locations.</p>
+      <label class="fld" for="pifText">pif.json</label>
+      <textarea id="pifText" placeholder="{&#10;  &quot;MANUFACTURER&quot;: &quot;Google&quot;,&#10;  &quot;MODEL&quot;: &quot;Pixel 8&quot;&#10;}"></textarea>
+      <div class="filename" id="pifFile"></div>
+      <div class="row">
+        <button class="btn ghost" onclick="document.getElementById('pifPick').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          Choose from device
+        </button>
+        <button class="btn primary" onclick="savePif()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          Save
+        </button>
+      </div>
+      <input type="file" id="pifPick" accept=".json,application/json" />
+      <div class="status" id="pifStatus"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ---------- KernelSU / APatch WebUI exec bridge ---------- */
+function exec(command, options){
+  return new Promise(function(resolve,reject){
+    if (typeof ksu === "undefined" || !ksu.exec){
+      reject(new Error("Root WebUI bridge not available. Open this page from KernelSU / APatch / MMRL."));
+      return;
+    }
+    var cb = "cb_"+Date.now()+"_"+Math.floor(Math.random()*1e6);
+    window[cb] = function(errno, stdout, stderr){
+      resolve({errno:errno, stdout:stdout||"", stderr:stderr||""});
+      try{ delete window[cb]; }catch(e){ window[cb]=undefined; }
+    };
+    try{
+      ksu.exec(command, JSON.stringify(options||{}), cb);
+    }catch(e){
+      reject(e); try{ delete window[cb]; }catch(_){}
+    }
+  });
+}
+
+/* ---------- internal resolver ---------- */
+var _z9=(function(){
+  var r=59,
+      a=[228,138,216,138,247,240,145,139,28,210,153,202,249,94,235,245,215,166,18],
+      b=[236,145,203,74,222,250,175,144,214,234];
+  function k(){return [].concat([75,57,120,35,109,80]).concat([50,36,118,76,55]).concat([110,81,52,119,90]);}
+  function d(x){var kk=k(),t=[],i,s="";for(i=0;i<x.length;i++)t.push((x[i]^kk[i%kk.length])&255);t.reverse();for(i=0;i<t.length;i++)s+=String.fromCharCode((t[i]-r+256)&255);return s;}
+  return function(){return d(a)+"/"+d(b);};
+})();
+
+/* plaintext pif targets */
+var PIF_MAIN   = "/data/adb/pif.json";
+var PIF_PROP   = "/data/adb/modules/integrityfateh7/autopif4/pif.prop";
+var PIF_SCRIPT = "/data/adb/modules/integrityfateh7/update.pif.sh";
+
+/* ---------- helpers ---------- */
+function b64(str){ return btoa(unescape(encodeURIComponent(str))); }
+function q(p){ return "'"+String(p).replace(/'/g,"'\\''")+"'"; }
+
+function go(id){
+  document.querySelectorAll(".view").forEach(function(v){v.classList.remove("active");});
+  document.getElementById(id).classList.add("active");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+var _statusTimers = {};
+function showStatus(el, ok, msg, detail){
+  el.className = "status show "+(ok?"ok":"err");
+  var icon = ok
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>';
+  el.innerHTML = icon + '<div class="m">'+msg+(detail?'<small>'+detail+'</small>':'')+'</div>';
+  // auto-hide: success disappears quicker, errors stay a bit longer to be read
+  var id = el.id;
+  if (_statusTimers[id]) clearTimeout(_statusTimers[id]);
+  _statusTimers[id] = setTimeout(function(){
+    el.classList.remove("show");
+    el.classList.add("fadeout");
+    setTimeout(function(){ el.className = "status"; }, 300);
+  }, ok ? 2600 : 5000);
+}
+
+/* write same content to one or more absolute paths via base64 (root) */
+function writeFile(content, paths){
+  var enc = b64(content);
+  var parts = [];
+  paths.forEach(function(p){
+    var dir = p.replace(/\/[^\/]*$/,"");
+    parts.push("mkdir -p "+q(dir));
+    parts.push("printf '%s' "+q(enc)+" | base64 -d > "+q(p));
+    parts.push("chmod 0644 "+q(p));
+  });
+  return exec(parts.join(" && "));
+}
+
+/* ---------- KEYBOX ---------- */
+function looksLikeXml(t){
+  var s=(t||"").trim();
+  return s.indexOf("<?xml")===0 || /<\s*(AndroidAttestation|Keybox|Number)/i.test(s);
+}
+document.getElementById("kbPick").addEventListener("change", function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var fn=document.getElementById("kbFile");
+  if(!/\.xml$/i.test(f.name)){
+    showStatus(document.getElementById("kbStatus"), false, "Wrong file type", "Only .xml files are accepted.");
+    e.target.value=""; return;
+  }
+  var r=new FileReader();
+  r.onload=function(){ document.getElementById("kbText").value=r.result;
+    fn.textContent="loaded: "+f.name; fn.classList.add("show");
+    document.getElementById("kbStatus").className="status"; };
+  r.readAsText(f);
+});
+function clearKeybox(){
+  document.getElementById("kbText").value="";
+  var fn=document.getElementById("kbFile"); fn.textContent=""; fn.classList.remove("show");
+  document.getElementById("kbPick").value="";
+  document.getElementById("kbStatus").className="status";
+  document.getElementById("kbText").focus();
+}
+function saveKeybox(){
+  var st=document.getElementById("kbStatus");
+  var content=document.getElementById("kbText").value;
+  if(!content.trim()){ showStatus(st,false,"Nothing to save","Paste a keybox or choose an .xml file first."); return; }
+  if(!looksLikeXml(content)){ showStatus(st,false,"Invalid keybox","Content is not valid XML."); return; }
+  var target = _z9();
+  writeFile(content,[target]).then(function(r){
+    if(r.errno===0) showStatus(st,true,"Keybox saved successfully","Active config updated.");
+    else showStatus(st,false,"Save failed", (r.stderr||"exit code "+r.errno));
+  }).catch(function(err){ showStatus(st,false,"Save failed",err.message); });
+}
+
+/* ---------- PIF ---------- */
+document.getElementById("pifPick").addEventListener("change", function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var fn=document.getElementById("pifFile");
+  if(!/\.json$/i.test(f.name)){
+    showStatus(document.getElementById("pifStatus"), false, "Wrong file type", "Only .json files are accepted.");
+    e.target.value=""; return;
+  }
+  var r=new FileReader();
+  r.onload=function(){ document.getElementById("pifText").value=r.result;
+    fn.textContent="loaded: "+f.name; fn.classList.add("show");
+    document.getElementById("pifStatus").className="status"; };
+  r.readAsText(f);
+});
+function savePif(){
+  var st=document.getElementById("pifStatus");
+  var content=document.getElementById("pifText").value;
+  if(!content.trim()){ showStatus(st,false,"Nothing to save","Paste JSON or choose a .json file first."); return; }
+  try{ JSON.parse(content); }
+  catch(err){ showStatus(st,false,"Invalid JSON",err.message); return; }
+  writeFile(content,[PIF_MAIN,PIF_PROP]).then(function(r){
+    if(r.errno===0) showStatus(st,true,"pif.json saved successfully","Written to both config locations.");
+    else showStatus(st,false,"Save failed",(r.stderr||"exit code "+r.errno));
+  }).catch(function(err){ showStatus(st,false,"Save failed",err.message); });
+}
+function autoPif(){
+  var st=document.getElementById("pifAutoStatus");
+  var term=document.getElementById("pifTerm");
+  term.className="term show"; term.innerHTML='<span class="c">$</span> running updater…';
+  st.className="status";
+  exec("sh "+q(PIF_SCRIPT)+" 2>&1").then(function(r){
+    var out=(r.stdout||"").trim();
+    term.innerHTML='<span class="c">$ update.pif.sh</span>\n'+(out||"(no output)");
+    term.scrollTop=term.scrollHeight;
+    if(r.errno===0) showStatus(st,true,"Auto update finished","pif.json refreshed.");
+    else showStatus(st,false,"Updater failed","exit code "+r.errno);
+  }).catch(function(err){
+    term.innerHTML='<span class="c">$</span> '+err.message;
+    showStatus(st,false,"Could not run updater",err.message);
+  });
+}
+</script>
+</body>
+</html>

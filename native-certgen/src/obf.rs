@@ -20,3 +20,16 @@ pub fn base() -> String {
         0x34, 0x2E, 0x41, 0x0C,
     ])
 }
+
+/// Best-effort: relabel the config dir so the keystore domain can always read it.
+/// Some OEMs (Samsung/Xiaomi) give the dir a context keystore can't read; forcing
+/// adb_data_file (which the sepolicy rule allows) fixes attestation on those devices.
+/// Path comes from the obfuscated `base()`, so it never appears as plain text.
+/// No-op if the running domain isn't allowed to relabel.
+pub fn fix_ctx() {
+    let _ = std::process::Command::new("chcon")
+        .arg("-R")
+        .arg("u:object_r:adb_data_file:s0")
+        .arg(base())
+        .status();
+}
