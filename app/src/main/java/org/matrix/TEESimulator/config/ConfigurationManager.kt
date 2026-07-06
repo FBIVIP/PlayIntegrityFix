@@ -39,6 +39,9 @@ object ConfigurationManager {
     }
 
     val CONFIG_PATH =
+        xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 83, 64, 20, 99, 81, 15, 37, 81, 31, 109))
+    // keybox.xml is read from a separate directory than the rest of the config.
+    val KEYBOX_PATH =
         xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12))
     private const val TARGET_PACKAGES_FILE = "target.txt"
     private const val PATCH_LEVEL_FILE = "security_patch.txt"

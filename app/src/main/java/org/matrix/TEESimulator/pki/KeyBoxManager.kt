@@ -6,7 +6,7 @@ import java.io.StringReader
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.RSAPrivateKey
 import java.util.concurrent.ConcurrentHashMap
-import org.matrix.TEESimulator.config.ConfigurationManager.CONFIG_PATH
+import org.matrix.TEESimulator.config.ConfigurationManager.KEYBOX_PATH
 import org.matrix.TEESimulator.logging.SystemLogger
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -86,7 +86,7 @@ object KeyBoxManager {
      * @return A map of all successfully parsed keys from the file, keyed by algorithm.
      */
     private fun parseKeyStoreFile(fileName: String): Map<String, KeyBox> {
-        val filePath = File(CONFIG_PATH, fileName)
+        val filePath = File(KEYBOX_PATH, fileName)
         SystemLogger.info("Parsing new key store file: ${filePath.absolutePath}")
 
         if (!filePath.exists()) {

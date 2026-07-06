@@ -194,7 +194,7 @@ object AndroidDeviceUtils {
     }
 
     private val PERSIST_DIR =
-        File(xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12)))
+        File(xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 83, 64, 20, 99, 81, 15, 37, 81, 31, 109)))
 
     private fun fileForProperty(propertyName: String): File = when (propertyName) {
         "ro.boot.vbmeta.digest" -> File(PERSIST_DIR, "boot_hash.bin")
