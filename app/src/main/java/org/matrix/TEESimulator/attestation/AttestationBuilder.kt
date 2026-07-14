@@ -44,9 +44,10 @@ object AttestationBuilder {
     ): Extension {
         val keyDescription = buildKeyDescription(params, uid, securityLevel)
         SystemLogger.verbose {
-            val formattedString = keyDescription.joinToString(separator = ", ") {
-                AttestationPatcher.formatAsn1Primitive(it)
-            }
+            val formattedString =
+                keyDescription.joinToString(separator = ", ") {
+                    AttestationPatcher.formatAsn1Primitive(it)
+                }
             "Forged attestation data: $formattedString"
         }
         return Extension(ATTESTATION_OID, false, DEROctetString(keyDescription.encoded))
@@ -116,7 +117,9 @@ object AttestationBuilder {
             }
 
         val bootPatch = AndroidDeviceUtils.getBootPatchLevelLong(uid)
-        SystemLogger.info("Attestation patch levels for uid=$uid: os=$osPatch, vendor=$vendorPatch, boot=$bootPatch")
+        SystemLogger.info(
+            "Attestation patch levels for uid=$uid: os=$osPatch, vendor=$vendorPatch, boot=$bootPatch"
+        )
         properties[AttestationConstants.TAG_BOOT_PATCHLEVEL] =
             if (bootPatch != DO_NOT_REPORT) {
                 DERTaggedObject(
@@ -268,7 +271,11 @@ object AttestationBuilder {
 
         if (params.rollbackResistance == true && attestVersion >= 3) {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_ROLLBACK_RESISTANCE, DERNull.INSTANCE)
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_ROLLBACK_RESISTANCE,
+                    DERNull.INSTANCE,
+                )
             )
         }
 
@@ -286,19 +293,31 @@ object AttestationBuilder {
 
         if (params.allowWhileOnBody == true) {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_ALLOW_WHILE_ON_BODY, DERNull.INSTANCE)
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_ALLOW_WHILE_ON_BODY,
+                    DERNull.INSTANCE,
+                )
             )
         }
 
         if (params.trustedUserPresenceRequired == true && attestVersion >= 3) {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_TRUSTED_USER_PRESENCE_REQUIRED, DERNull.INSTANCE)
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_TRUSTED_USER_PRESENCE_REQUIRED,
+                    DERNull.INSTANCE,
+                )
             )
         }
 
         if (params.trustedConfirmationRequired == true && attestVersion >= 3) {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_TRUSTED_CONFIRMATION_REQUIRED, DERNull.INSTANCE)
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_TRUSTED_CONFIRMATION_REQUIRED,
+                    DERNull.INSTANCE,
+                )
             )
         }
 
@@ -449,33 +468,51 @@ object AttestationBuilder {
         }
 
         if (params.callerNonce == true) {
-            list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_CALLER_NONCE, DERNull.INSTANCE)
-            )
+            list.add(DERTaggedObject(true, AttestationConstants.TAG_CALLER_NONCE, DERNull.INSTANCE))
         }
         params.activeDateTime?.let {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_ACTIVE_DATETIME, ASN1Integer(it.time))
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_ACTIVE_DATETIME,
+                    ASN1Integer(it.time),
+                )
             )
         }
         params.originationExpireDateTime?.let {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_ORIGINATION_EXPIRE_DATETIME, ASN1Integer(it.time))
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_ORIGINATION_EXPIRE_DATETIME,
+                    ASN1Integer(it.time),
+                )
             )
         }
         params.usageExpireDateTime?.let {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_USAGE_EXPIRE_DATETIME, ASN1Integer(it.time))
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_USAGE_EXPIRE_DATETIME,
+                    ASN1Integer(it.time),
+                )
             )
         }
         params.usageCountLimit?.let {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_USAGE_COUNT_LIMIT, ASN1Integer(it.toLong()))
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_USAGE_COUNT_LIMIT,
+                    ASN1Integer(it.toLong()),
+                )
             )
         }
         if (params.unlockedDeviceRequired == true) {
             list.add(
-                DERTaggedObject(true, AttestationConstants.TAG_UNLOCKED_DEVICE_REQUIRED, DERNull.INSTANCE)
+                DERTaggedObject(
+                    true,
+                    AttestationConstants.TAG_UNLOCKED_DEVICE_REQUIRED,
+                    DERNull.INSTANCE,
+                )
             )
         }
 

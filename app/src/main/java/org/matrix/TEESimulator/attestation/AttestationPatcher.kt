@@ -2,8 +2,15 @@ package org.matrix.TEESimulator.attestation
 
 import android.security.keystore.KeyProperties
 import java.nio.charset.StandardCharsets
+import java.security.PrivateKey
+import java.security.PublicKey
 import java.security.cert.Certificate
 import java.security.cert.X509Certificate
+import java.security.interfaces.ECPrivateKey
+import java.security.interfaces.ECPublicKey
+import java.security.interfaces.RSAPrivateKey
+import java.security.interfaces.RSAPublicKey
+import java.util.Date
 import org.bouncycastle.asn1.*
 import org.bouncycastle.asn1.x509.Extension
 import org.bouncycastle.cert.X509CertificateHolder
@@ -16,7 +23,6 @@ import org.matrix.TEESimulator.logging.SystemLogger
 import org.matrix.TEESimulator.pki.KeyBox
 import org.matrix.TEESimulator.pki.KeyBoxManager
 import org.matrix.TEESimulator.util.toHex
-import java.util.Date
 
 /**
  * Handles the modification (patching) of Android Key Attestation extensions within certificates.
@@ -67,7 +73,6 @@ object AttestationPatcher {
                         originalLeafHolder,
                         parsedAttestation,
                         keybox,
-                        originalLeaf.sigAlgName,
                         uid,
                         notBefore,
                         notAfter,
@@ -92,24 +97,11 @@ object AttestationPatcher {
     }
 
     /**
-     * Helper to normalize algorithm names for Bouncy Castle. Old Android versions might reports
-     * "SHA256WITHECDSA", but Bouncy Castle expects "SHA256withECDSA".
-     */
-    private fun normalizeSignatureAlgorithm(algoName: String): String {
-        // 1. Force uppercase to handle "sha256withecdsa"
-        // 2. Replace "WITH" with "with" to satisfy Bouncy Castle's naming convention
-        return algoName.uppercase().replace("WITH", "with")
-    }
-
-    /**
      * Creates a new leaf certificate with a modified attestation extension.
      *
      * @param originalLeafHolder A Bouncy Castle holder for the original leaf certificate.
      * @param parsedAttestation The parsed components of the original attestation.
      * @param keybox The KeyBox containing the new issuer certificate and signing key.
-     * @param sigAlgName The signature algorithm name (e.g., "SHA256withECDSA") from the original
-     *   certificate. This is required to ensure the new certificate is signed using a compatible
-     *   algorithm.
      * @param uid The UID of the application requesting the certificate.
      * @return A new [Certificate] object.
      */
@@ -117,7 +109,6 @@ object AttestationPatcher {
         originalLeafHolder: X509CertificateHolder,
         parsedAttestation: ParsedAttestation,
         keybox: KeyBox,
-        sigAlgName: String,
         uid: Int,
         notBefore: Date? = null,
         notAfter: Date? = null,
@@ -154,9 +145,12 @@ object AttestationPatcher {
             )
         }
 
-        // Sign the newly built certificate with the private key from our keybox.
+        // Sign the new leaf with the keybox key. The signature algorithm must match THAT key, not
+        // the original leaf's: when an RSA leaf is re-rooted under an EC-only keybox, this signs
+        // with ECDSA. The RSA subject public key is untouched and the chain still verifies to the
+        // keybox root.
         val signer =
-            JcaContentSignerBuilder(normalizeSignatureAlgorithm(sigAlgName))
+            JcaContentSignerBuilder(signatureAlgorithmFor(keybox.keyPair.private))
                 .setProvider(BouncyCastleProvider.PROVIDER_NAME)
                 .build(keybox.keyPair.private)
         val newCertificate = JcaX509CertificateConverter().getCertificate(builder.build(signer))
@@ -178,8 +172,8 @@ object AttestationPatcher {
      *     1. A simple key type like "RSA" or "EC".
      *     2. A full JCA signature algorithm name like "SHA256withRSA".
      *
-     * @return The [KeyBox] containing the appropriate key pair for signing.
-     * @throws IllegalArgumentException if no matching KeyBox can be found for the derived key type.
+     * @return The algorithm-matching [KeyBox] when present, otherwise any available key (fail-safe).
+     * @throws IllegalArgumentException only if the keybox file contains no usable signing key.
      */
     private fun getKeyboxForUidAndAlgorithm(uid: Int, algorithm: String): KeyBox {
         val keyboxFile = ConfigurationManager.getKeyboxFileForUid(uid)
@@ -194,11 +188,36 @@ object AttestationPatcher {
                 else -> algorithm // If no match, assume it's already a simple key type string.
             }
 
-        return KeyBoxManager.getAttestationKey(keyboxFile, keyType)
+        val matching = KeyBoxManager.getAttestationKey(keyboxFile, keyType)
+        if (matching != null) return matching
+
+        // Fail-safe: no algorithm-matching key (e.g. an EC-only Google keybox asked to re-root an
+        // RSA leaf). Fall back to any available key instead of throwing -- a throw here aborts the
+        // patch and the caller hands back the device's REAL, unlocked attestation. Re-signing under
+        // the available key keeps the chain rooted at the keybox with our forged, locked Root of
+        // Trust; a leaf's signature algorithm is independent of its subject key, so an RSA subject
+        // key signs validly under an EC keybox key.
+        return KeyBoxManager.getAnyAttestationKey(keyboxFile)?.also {
+            SystemLogger.debug(
+                "No '$keyType' attestation key in $keyboxFile for UID $uid; re-signing under the " +
+                    "available keybox key to avoid leaking the device's real attestation."
+            )
+        }
             ?: throw IllegalArgumentException(
-                "No keybox found for UID $uid and algorithm '$keyType' (derived from input '$algorithm') in file $keyboxFile"
+                "No usable attestation key for UID $uid in file $keyboxFile (requested '$keyType')"
             )
     }
+
+    /** SHA-256 signature algorithm name matching the keybox signing key's type. */
+    private fun signatureAlgorithmFor(signingKey: PrivateKey): String =
+        when (signingKey) {
+            is ECPrivateKey -> "SHA256withECDSA"
+            is RSAPrivateKey -> "SHA256withRSA"
+            else ->
+                throw IllegalArgumentException(
+                    "Unsupported keybox signing key type: ${signingKey.algorithm}"
+                )
+        }
 
     /** Recursively formats an ASN1Primitive into a concise, readable string. */
     fun formatAsn1Primitive(obj: ASN1Encodable?): String {
@@ -232,6 +251,157 @@ object AttestationPatcher {
                     .joinToString(prefix = "{", postfix = "}", separator = ", ")
             else -> primitive.toString() // Fallback for other types
         }
+    }
+
+    /** Reverse map of attestation tag number to its symbolic name, e.g. 704 -> "ROOT_OF_TRUST". */
+    private val attestTagNames: Map<Int, String> by lazy {
+        AttestationConstants::class
+            .java
+            .fields
+            .filter { it.name.startsWith("TAG_") && it.type == Int::class.java }
+            .associate { (it.get(null) as Int) to it.name.removePrefix("TAG_") }
+    }
+
+    /**
+     * Renders the full key-attestation extension of [cert] as a single structured line for the
+     * diagnostic dossier, or null when the certificate carries no attestation extension. This is the
+     * ground-truth view of what we actually emitted, so any divergence from a genuine TEE surfaces
+     * directly as a differing field rather than having to be guessed.
+     */
+    fun formatAttestationExtension(cert: X509Certificate): String? {
+        val rawExtension = cert.getExtensionValue(ATTESTATION_OID.id) ?: return null
+        return runCatching {
+                val keyDescriptionDer = ASN1OctetString.getInstance(rawExtension).octets
+                formatKeyDescription(ASN1Sequence.getInstance(keyDescriptionDer))
+            }
+            .getOrElse { "<unparseable attestation extension: ${it.message}>" }
+    }
+
+    /** Renders the identity fields of every certificate in a returned chain for the dossier. */
+    fun formatCertChain(chain: List<Certificate>): String =
+        chain
+            .mapIndexed { index, cert ->
+                val x509 = cert as? X509Certificate ?: return@mapIndexed "[$index] <non-X509>"
+                "[$index] subject=${x509.subjectX500Principal.name} " +
+                    "issuer=${x509.issuerX500Principal.name} " +
+                    "serial=${x509.serialNumber.toString(16)} " +
+                    "notBefore=${x509.notBefore} notAfter=${x509.notAfter}"
+            }
+            .joinToString(separator = " ; ")
+
+    /**
+     * Verifies every certificate in [chain] against its issuer and renders the outcome for the
+     * dossier. The forged chain is [leaf] + keybox certs, so edge 0<-1 proves the leaf was signed by
+     * the key matching the issuer cert and later edges test the keybox's own chain. For an RSA issuer
+     * it also reports signature-bytes vs modulus-bytes: a signature longer than the modulus is the
+     * exact DATA_TOO_LARGE_FOR_KEY_SIZE the app's verifier throws, so the offending edge is
+     * identifiable from the log alone.
+     */
+    fun formatChainVerification(chain: List<Certificate>): String {
+        if (chain.size < 2) return "<single cert; nothing to chain-verify>"
+        return (0 until chain.size - 1).joinToString(separator = " ; ") { i ->
+            val child = chain[i] as? X509Certificate ?: return@joinToString "[$i]<non-X509>"
+            val parent =
+                chain[i + 1] as? X509Certificate ?: return@joinToString "[$i]<parent non-X509>"
+            val outcome =
+                runCatching {
+                        child.verify(parent.publicKey)
+                        "OK"
+                    }
+                    .getOrElse { "FAIL(${it.javaClass.simpleName}: ${it.message?.take(80)})" }
+            val rsaSizes =
+                (parent.publicKey as? RSAPublicKey)?.let {
+                    val sigBytes = child.signature.size
+                    val modBytes = (it.modulus.bitLength() + 7) / 8
+                    " sig=${sigBytes}B mod=${modBytes}B" + if (sigBytes > modBytes) " OVERSIZE" else ""
+                } ?: ""
+            "[$i]${describeKey(child.publicKey)}<-[${i + 1}]${describeKey(parent.publicKey)}:" +
+                "$outcome$rsaSizes"
+        }
+    }
+
+    /**
+     * Per-cert key type/size, subject, issuer, and signature length, for reconstructing the chain a
+     * caller verifies. The signature length reveals the signer's key size, so a 4096-bit signature
+     * landing on a 2048-bit issuer (DATA_TOO_LARGE) is visible without the certificate bytes.
+     */
+    fun formatChainKeys(chain: List<Certificate>): String =
+        chain
+            .mapIndexed { index, cert ->
+                val x509 = cert as? X509Certificate ?: return@mapIndexed "[$index]<non-X509>"
+                "[$index]${describeKey(x509.publicKey)} " +
+                    "subj=${x509.subjectX500Principal.name} " +
+                    "iss=${x509.issuerX500Principal.name} " +
+                    "sigLen=${x509.signature.size}B"
+            }
+            .joinToString(separator = " ; ")
+
+    private fun describeKey(key: PublicKey): String =
+        when (key) {
+            is RSAPublicKey -> "RSA${key.modulus.bitLength()}"
+            is ECPublicKey -> "EC${key.params.curve.field.fieldSize}"
+            else -> key.algorithm
+        }
+
+    private fun formatKeyDescription(seq: ASN1Sequence): String {
+        val fields = seq.toArray()
+        return "attestVer=${formatAsn1Primitive(fields[AttestationConstants.KEY_DESCRIPTION_ATTESTATION_VERSION_INDEX])} " +
+            "attestSecLvl=${formatSecurityLevel(fields[AttestationConstants.KEY_DESCRIPTION_ATTESTATION_SECURITY_LEVEL_INDEX])} " +
+            "kmVer=${formatAsn1Primitive(fields[AttestationConstants.KEY_DESCRIPTION_KEYMINT_VERSION_INDEX])} " +
+            "kmSecLvl=${formatSecurityLevel(fields[AttestationConstants.KEY_DESCRIPTION_KEYMINT_SECURITY_LEVEL_INDEX])} " +
+            "challenge=${formatAsn1Primitive(fields[AttestationConstants.KEY_DESCRIPTION_ATTESTATION_CHALLENGE_INDEX])} " +
+            "uniqueId=${formatAsn1Primitive(fields[AttestationConstants.KEY_DESCRIPTION_UNIQUE_ID_INDEX])} " +
+            "sw=${formatAuthorizationList(fields[AttestationConstants.KEY_DESCRIPTION_SOFTWARE_ENFORCED_INDEX])} " +
+            "tee=${formatAuthorizationList(fields[AttestationConstants.KEY_DESCRIPTION_TEE_ENFORCED_INDEX])}"
+    }
+
+    private fun formatSecurityLevel(obj: ASN1Encodable): String {
+        val level = (obj.toASN1Primitive() as? ASN1Enumerated)?.value?.toInt()
+        val name =
+            when (level) {
+                0 -> "Software"
+                1 -> "TEE"
+                2 -> "StrongBox"
+                else -> "?"
+            }
+        return "$level($name)"
+    }
+
+    private fun formatAuthorizationList(obj: ASN1Encodable): String {
+        val seq = obj.toASN1Primitive() as? ASN1Sequence ?: return formatAsn1Primitive(obj)
+        return seq
+            .map { element ->
+                val tagged = element as? ASN1TaggedObject ?: return@map formatAsn1Primitive(element)
+                val name = attestTagNames[tagged.tagNo] ?: "TAG"
+                val value =
+                    if (tagged.tagNo == AttestationConstants.TAG_ROOT_OF_TRUST)
+                        formatRootOfTrust(tagged.baseObject)
+                    else formatAsn1Primitive(tagged.baseObject)
+                "${tagged.tagNo}($name)=$value"
+            }
+            .joinToString(prefix = "[", postfix = "]", separator = ", ")
+    }
+
+    /**
+     * Decodes the Root of Trust sub-sequence explicitly — it is the field a detector most often uses
+     * to unmask a simulated TEE (a random verifiedBootKey, an unexpected verifiedBootState, or a
+     * deviceLocked that disagrees with the bootloader all live here).
+     */
+    private fun formatRootOfTrust(obj: ASN1Encodable): String {
+        val fields = (obj.toASN1Primitive() as? ASN1Sequence)?.toArray() ?: return formatAsn1Primitive(obj)
+        val state = fields.getOrNull(AttestationConstants.ROOT_OF_TRUST_VERIFIED_BOOT_STATE_INDEX)
+        val stateName =
+            when ((state?.toASN1Primitive() as? ASN1Enumerated)?.value?.toInt()) {
+                0 -> "Verified"
+                1 -> "SelfSigned"
+                2 -> "Unverified"
+                3 -> "Failed"
+                else -> "?"
+            }
+        return "[bootKey=${formatAsn1Primitive(fields.getOrNull(AttestationConstants.ROOT_OF_TRUST_VERIFIED_BOOT_KEY_INDEX))}, " +
+            "deviceLocked=${formatAsn1Primitive(fields.getOrNull(AttestationConstants.ROOT_OF_TRUST_DEVICE_LOCKED_INDEX))}, " +
+            "verifiedBootState=${formatAsn1Primitive(state)}($stateName), " +
+            "bootHash=${formatAsn1Primitive(fields.getOrNull(AttestationConstants.ROOT_OF_TRUST_VERIFIED_BOOT_HASH_INDEX))}]"
     }
 
     // Function to check if a given ASN1Sequence contains the Root of Trust tag.
@@ -287,7 +457,8 @@ object AttestationPatcher {
         val (allFields, teeEnforcedMap, originalRootOfTrust) = parsed
 
         SystemLogger.verbose {
-            val formattedString = allFields.joinToString(separator = ", ") { formatAsn1Primitive(it) }
+            val formattedString =
+                allFields.joinToString(separator = ", ") { formatAsn1Primitive(it) }
             "Original attestation data: $formattedString"
         }
 
@@ -317,7 +488,8 @@ object AttestationPatcher {
         allFields[AttestationConstants.KEY_DESCRIPTION_TEE_ENFORCED_INDEX] = sortedTeeEnforced
         val patchedSequence = DERSequence(allFields)
         SystemLogger.verbose {
-            val formattedString = patchedSequence.joinToString(separator = ", ") { formatAsn1Primitive(it) }
+            val formattedString =
+                patchedSequence.joinToString(separator = ", ") { formatAsn1Primitive(it) }
             "Patched  attestation data: $formattedString"
         }
         val patchedOctets = DEROctetString(patchedSequence)

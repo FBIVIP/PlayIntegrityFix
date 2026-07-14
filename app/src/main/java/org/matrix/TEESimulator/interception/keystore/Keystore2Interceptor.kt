@@ -18,6 +18,7 @@ import org.matrix.TEESimulator.attestation.KeyMintAttestation
 import org.matrix.TEESimulator.config.ConfigurationManager
 import org.matrix.TEESimulator.interception.keystore.shim.GeneratedKeyPersistence
 import org.matrix.TEESimulator.interception.keystore.shim.KeyMintSecurityLevelInterceptor
+import org.matrix.TEESimulator.logging.AttestationDossier
 import org.matrix.TEESimulator.logging.KeyMintParameterLogger
 import org.matrix.TEESimulator.logging.SystemLogger
 import org.matrix.TEESimulator.pki.CertificateGenerator
@@ -63,6 +64,8 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
 
     private const val RESPONSE_KEY_NOT_FOUND = 7
     private const val RESPONSE_PERMISSION_DENIED = 6
+    private const val KEY_PERMISSION_GET_INFO = 0x4
+    private const val KEY_PERMISSION_UPDATE = 0x80
 
     // KeyStoreManager.grantKeyAccess() became a public app API in Android 16 (API 36). Before that,
     // grant was a hidden API and SELinux denied untrusted_app, so a synthetic-key grant must answer
@@ -120,7 +123,10 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                         Keystore2MaintenanceInterceptor,
                         Keystore2MaintenanceInterceptor.interceptedCodes,
                     )
-                } ?: SystemLogger.warning("Maintenance binder not found; skipping lifecycle parity.")
+                }
+                    ?: SystemLogger.warning(
+                        "Maintenance binder not found; skipping lifecycle parity."
+                    )
             }
             .onFailure { SystemLogger.error("Failed to intercept maintenance binder.", it) }
     }
@@ -219,22 +225,28 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                     ?: return TransactionResult.ContinueAndSkipPost
 
             // Domain.GRANT read (Android 16+ KeyStoreManager grant). Served for ANY grantee uid —
-            // including isolated services (bindIsolatedService) with no package mapping — so resolve
-            // it before the package-scoped skip; caller-binding in resolveGrant() is the real access
-            // gate. On Android <= 15 no grants are ever issued (grant() denies), so softwareGrants is
+            // including isolated services (bindIsolatedService) with no package mapping — so
+            // resolve
+            // it before the package-scoped skip; caller-binding in resolveGrant() is the real
+            // access
+            // gate. On Android <= 15 no grants are ever issued (grant() denies), so softwareGrants
+            // is
             // empty and this falls through to the real keystore2.
             if (code == GET_KEY_ENTRY_TRANSACTION && descriptor.domain == Domain.GRANT) {
                 val grant =
                     KeyMintSecurityLevelInterceptor.resolveGrant(descriptor.nspace, callingUid)
                 if (grant == null) {
-                    // Ours but wrong caller -> KEY_NOT_FOUND (caller-binding); not ours -> real keystore2.
+                    // Ours but wrong caller -> KEY_NOT_FOUND (caller-binding); not ours -> real
+                    // keystore2.
                     return if (
-                        KeyMintSecurityLevelInterceptor.softwareGrants.containsKey(descriptor.nspace)
+                        KeyMintSecurityLevelInterceptor.softwareGrants.containsKey(
+                            descriptor.nspace
+                        )
                     )
                         InterceptorUtils.createErrorReply(RESPONSE_KEY_NOT_FOUND)
                     else TransactionResult.ContinueAndSkipPost
                 }
-                if ((grant.accessVector and 0x4) == 0) { // GET_INFO = 0x4 (access-vector gate)
+                if ((grant.accessVector and KEY_PERMISSION_GET_INFO) == 0) {
                     return InterceptorUtils.createErrorReply(RESPONSE_PERMISSION_DENIED)
                 }
                 val response =
@@ -244,7 +256,9 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                 return InterceptorUtils.createTypedObjectReply(response)
             }
 
-            if (ConfigurationManager.shouldSkipUid(callingUid))
+            // generateKey force-forges attest/device-id keys even for skipped UIDs; getKeyEntry
+            // must serve them back or the framework's attestKeyAlias lookup gets KEY_NOT_FOUND.
+            if (code != GET_KEY_ENTRY_TRANSACTION && ConfigurationManager.shouldSkipUid(callingUid))
                 return TransactionResult.ContinueAndSkipPost
 
             if (code == DELETE_KEY_TRANSACTION) {
@@ -253,12 +267,16 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                         KeyIdentifier(callingUid, descriptor.alias)
                     } else if (descriptor.domain == Domain.KEY_ID) {
                         KeyMintSecurityLevelInterceptor.findGeneratedKeyByKeyId(
-                            callingUid, descriptor.nspace
-                        )?.let { info ->
-                            KeyMintSecurityLevelInterceptor.generatedKeys.entries
-                                .find { it.value.nspace == info.nspace && it.key.uid == callingUid }
-                                ?.key
-                        }
+                                callingUid,
+                                descriptor.nspace,
+                            )
+                            ?.let { info ->
+                                KeyMintSecurityLevelInterceptor.generatedKeys.entries
+                                    .find {
+                                        it.value.nspace == info.nspace && it.key.uid == callingUid
+                                    }
+                                    ?.key
+                            }
                     } else null
 
                 if (keyId != null) {
@@ -289,27 +307,34 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                     // "Captured private binder exception during timing skip".
                     // Resolving by KEY_ID and returning the cached response keeps
                     // the call on the happy path, eliminating the warmup signal.
-                    val info = KeyMintSecurityLevelInterceptor.findGeneratedKeyByKeyId(
-                        callingUid, descriptor.nspace
-                    )
+                    val info =
+                        KeyMintSecurityLevelInterceptor.findGeneratedKeyByKeyId(
+                            callingUid,
+                            descriptor.nspace,
+                        )
                     if (info?.response != null) {
                         SystemLogger.info(
                             "[TX_ID: $txId] Found generated response via KEY_ID nspace=${descriptor.nspace}"
                         )
+                        logServedChain(callingUid, txId, "keyid:${descriptor.nspace}", info.response)
                         return InterceptorUtils.createTypedObjectReply(info.response)
                     }
-                    val teeResp = KeyMintSecurityLevelInterceptor.findTeeResponseByKeyId(
-                        callingUid, descriptor.nspace
-                    )
+                    val teeResp =
+                        KeyMintSecurityLevelInterceptor.findTeeResponseByKeyId(
+                            callingUid,
+                            descriptor.nspace,
+                        )
                     if (teeResp != null) {
                         SystemLogger.info(
                             "[TX_ID: $txId] Found TEE response via KEY_ID nspace=${descriptor.nspace}"
                         )
+                        logServedChain(callingUid, txId, "keyid:${descriptor.nspace}", teeResp)
                         return InterceptorUtils.createTypedObjectReply(teeResp)
                     }
                 }
                 // Domain.GRANT is handled earlier (before the package-scoped skip); an alias-less
-                // read reaching here is KEY_ID or unknown, so it falls through to the real keystore2.
+                // read reaching here is KEY_ID or unknown, so it falls through to the real
+                // keystore2.
                 return TransactionResult.ContinueAndSkipPost
             }
             val keyId = KeyIdentifier(callingUid, descriptor.alias)
@@ -317,10 +342,16 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
             val response = KeyMintSecurityLevelInterceptor.getGeneratedKeyResponse(keyId)
             if (response == null) {
                 if (deletedSoftwareKeys.remove(keyId)) {
-                    SystemLogger.info("[TX_ID: $txId] Returning KEY_NOT_FOUND for deleted key ${descriptor.alias}")
+                    SystemLogger.info(
+                        "[TX_ID: $txId] Returning KEY_NOT_FOUND for deleted key ${descriptor.alias}"
+                    )
                     return InterceptorUtils.createErrorReply(RESPONSE_KEY_NOT_FOUND)
                 }
-                return TransactionResult.Continue
+                // Owned keys were served above; for a skipped UID a non-owned key must still skip
+                // post-processing so we never patch an un-targeted app's real key.
+                return if (ConfigurationManager.shouldSkipUid(callingUid))
+                    TransactionResult.ContinueAndSkipPost
+                else TransactionResult.Continue
             }
 
             if (KeyMintSecurityLevelInterceptor.isAttestationKey(keyId))
@@ -328,8 +359,9 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
 
             SystemLogger.info("[TX_ID: $txId] Found generated response for ${descriptor.alias}:")
             response.metadata?.authorizations?.forEach {
-                KeyMintParameterLogger.logParameter(it.keyParameter)
+                KeyMintParameterLogger.logParameter(callingUid, txId, it.keyParameter)
             }
+            logServedChain(callingUid, txId, descriptor.alias, response)
             return InterceptorUtils.createTypedObjectReply(response)
         } else if (code == GRANT_TRANSACTION) {
             logTransaction(txId, transactionNames[code] ?: "grant", callingUid, callingPid)
@@ -339,14 +371,16 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                     ?: return TransactionResult.ContinueAndSkipPost
             val granteeUid = data.readInt()
             val accessVector = data.readInt()
-            // Synthetic (generatedKeys) AND patch-mode (teeResponses) keys are ours; both must grant
-            // coherently so the Domain.GRANT readback returns the same chain the owner read returns.
+            // Synthetic (generatedKeys) AND patch-mode (teeResponses) keys are ours; both must
+            // grant
+            // coherently so the Domain.GRANT readback returns the same chain the owner read
+            // returns.
             // Real hardware keys fall through to the real keystore2, which applies the same SELinux
             // gate the platform would.
             val ownerKeyId =
-                resolveOwnerKeyId(key, callingUid)
-                    ?.takeIf { KeyMintSecurityLevelInterceptor.ownsKeyResponse(it) }
-                    ?: return TransactionResult.ContinueAndSkipPost
+                resolveOwnerKeyId(key, callingUid)?.takeIf {
+                    KeyMintSecurityLevelInterceptor.ownsKeyResponse(it)
+                } ?: return TransactionResult.ContinueAndSkipPost
             // Version-gated to mirror the real TEE 1:1. Pre-Android-16, grant was a hidden API and
             // SELinux denied untrusted_app, so keystore2 returns PERMISSION_DENIED. Android 16
             // (API 36) exposes KeyStoreManager.grantKeyAccess(), so an app grants its own key:
@@ -373,9 +407,9 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                     ?: return TransactionResult.ContinueAndSkipPost
             val granteeUid = data.readInt()
             val ownerKeyId =
-                resolveOwnerKeyId(key, callingUid)
-                    ?.takeIf { KeyMintSecurityLevelInterceptor.ownsKeyResponse(it) }
-                    ?: return TransactionResult.ContinueAndSkipPost
+                resolveOwnerKeyId(key, callingUid)?.takeIf {
+                    KeyMintSecurityLevelInterceptor.ownsKeyResponse(it)
+                } ?: return TransactionResult.ContinueAndSkipPost
             // Same version gate as grant(): denied pre-36, revoke the virtualized grant on 36+.
             if (Build.VERSION.SDK_INT < GRANT_PUBLIC_API_SDK) {
                 return InterceptorUtils.createErrorReply(RESPONSE_PERMISSION_DENIED)
@@ -423,10 +457,11 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                             it.uid == callingUid
                         }
                     val totalCount = hardwareCount + softwareCount
-                    val parcel = Parcel.obtain().apply {
-                        writeNoException()
-                        writeInt(totalCount)
-                    }
+                    val parcel =
+                        Parcel.obtain().apply {
+                            writeNoException()
+                            writeInt(totalCount)
+                        }
                     TransactionResult.OverrideReply(parcel)
                 }
                 .getOrElse {
@@ -469,8 +504,12 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                     val keyId = KeyIdentifier(callingUid, keyDescriptor.alias)
 
                     if (userUpdatedKeys.remove(keyId)) {
-                        SystemLogger.trace { "[TRACE-$txId] getKeyEntry $keyId: userUpdated=true, skipping patch" }
-                        SystemLogger.debug("[TX_ID: $txId] Skipping cert patch for user-updated key $keyId.")
+                        SystemLogger.trace {
+                            "[TRACE-$txId] getKeyEntry $keyId: userUpdated=true, skipping patch"
+                        }
+                        SystemLogger.debug(
+                            "[TX_ID: $txId] Skipping cert patch for user-updated key $keyId."
+                        )
                         return TransactionResult.SkipTransaction
                     }
 
@@ -480,18 +519,29 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                             authorizations?.map { it.keyParameter }?.toTypedArray() ?: emptyArray()
                         )
 
-                    SystemLogger.trace { "[TRACE-$txId] getKeyEntry $keyId: isImport=${parsedParameters.isImportKey()} origin=${parsedParameters.origin} inImportedKeys=${KeyMintSecurityLevelInterceptor.importedKeys.contains(keyId)} hasPatchedChain=${KeyMintSecurityLevelInterceptor.getPatchedChain(keyId) != null} isAttestKey=${parsedParameters.isAttestKey()}" }
+                    SystemLogger.trace {
+                        "[TRACE-$txId] getKeyEntry $keyId: isImport=${parsedParameters.isImportKey()} origin=${parsedParameters.origin} inImportedKeys=${KeyMintSecurityLevelInterceptor.importedKeys.contains(keyId)} hasPatchedChain=${KeyMintSecurityLevelInterceptor.getPatchedChain(keyId) != null} isAttestKey=${parsedParameters.isAttestKey()}"
+                    }
 
                     if (parsedParameters.isImportKey()) {
                         val retainedChain = KeyMintSecurityLevelInterceptor.getPatchedChain(keyId)
                         if (retainedChain == null) {
-                            SystemLogger.trace { "[TRACE-$txId] getKeyEntry $keyId: imported, no retained chain, skip" }
-                            SystemLogger.info("[TX_ID: $txId] Skip patching for imported key (no prior attestation).")
+                            SystemLogger.trace {
+                                "[TRACE-$txId] getKeyEntry $keyId: imported, no retained chain, skip"
+                            }
+                            SystemLogger.info(
+                                "[TX_ID: $txId] Skip patching for imported key (no prior attestation)."
+                            )
                             return TransactionResult.SkipTransaction
                         }
-                        SystemLogger.trace { "[TRACE-$txId] getKeyEntry $keyId: imported, SERVING RETAINED CHAIN (detection vector!)" }
-                        SystemLogger.info("[TX_ID: $txId] Imported key overwrote attested alias, serving retained chain for $keyId")
-                        CertificateHelper.updateCertificateChain(response.metadata, retainedChain).getOrThrow()
+                        SystemLogger.trace {
+                            "[TRACE-$txId] getKeyEntry $keyId: imported, SERVING RETAINED CHAIN (detection vector!)"
+                        }
+                        SystemLogger.info(
+                            "[TX_ID: $txId] Imported key overwrote attested alias, serving retained chain for $keyId"
+                        )
+                        CertificateHelper.updateCertificateChain(response.metadata, retainedChain)
+                            .getOrThrow()
                         response.metadata.authorizations =
                             InterceptorUtils.patchAuthorizations(
                                 response.metadata.authorizations,
@@ -501,8 +551,12 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                     }
 
                     if (KeyMintSecurityLevelInterceptor.importedKeys.contains(keyId)) {
-                        SystemLogger.trace { "[TRACE-$txId] getKeyEntry $keyId: in importedKeys set, skip" }
-                        SystemLogger.debug("[TX_ID: $txId] Skipping attest-key override for imported key $keyId")
+                        SystemLogger.trace {
+                            "[TRACE-$txId] getKeyEntry $keyId: in importedKeys set, skip"
+                        }
+                        SystemLogger.debug(
+                            "[TX_ID: $txId] Skipping attest-key override for imported key $keyId"
+                        )
                         return TransactionResult.SkipTransaction
                     }
 
@@ -545,17 +599,19 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                         // Snapshot metadata bytes for the same reason as the
                         // primary doSoftwareKeyGen path — loss-less restore
                         // after reboot.
-                        val metadataBytesForPersist = response.metadata?.let { md ->
-                            runCatching {
-                                val parcel = android.os.Parcel.obtain()
-                                try {
-                                    md.writeToParcel(parcel, 0)
-                                    parcel.marshall()
-                                } finally {
-                                    parcel.recycle()
-                                }
-                            }.getOrNull()
-                        }
+                        val metadataBytesForPersist =
+                            response.metadata?.let { md ->
+                                runCatching {
+                                        val parcel = android.os.Parcel.obtain()
+                                        try {
+                                            md.writeToParcel(parcel, 0)
+                                            parcel.marshall()
+                                        } finally {
+                                            parcel.recycle()
+                                        }
+                                    }
+                                    .getOrNull()
+                            }
                         GeneratedKeyPersistence.save(
                             keyId = keyId,
                             keyPair = keyData.first,
@@ -609,6 +665,10 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
                             callingUid,
                         )
 
+                    // PATCH decode point: the patched chain actually served back to the app on
+                    // getKeyEntry — the ground truth a patch-mode detector reads.
+                    AttestationDossier.log(callingUid, txId, "PATCH", finalChain.asList())
+
                     return InterceptorUtils.createTypedObjectReply(response)
                 }
                 .onFailure {
@@ -623,33 +683,90 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
     }
 
     /**
-     * Resolves the owner [KeyIdentifier] a grant/ungrant call targets. APP/alias keys map
-     * directly; KEY_ID keys are looked up by nspace (mirrors the deleteKey resolver). Returns
-     * null for anything not addressable, so callers fall through to the real keystore2.
+     * Resolves the owner [KeyIdentifier] a grant/ungrant call targets. APP/alias keys map directly;
+     * KEY_ID keys are looked up by nspace (mirrors the deleteKey resolver). Returns null for
+     * anything not addressable, so callers fall through to the real keystore2.
      */
     private fun resolveOwnerKeyId(descriptor: KeyDescriptor, callingUid: Int): KeyIdentifier? =
         when {
             descriptor.alias != null -> KeyIdentifier(callingUid, descriptor.alias)
             descriptor.domain == Domain.KEY_ID ->
-                KeyMintSecurityLevelInterceptor.findGeneratedKeyByKeyId(callingUid, descriptor.nspace)
+                KeyMintSecurityLevelInterceptor.findGeneratedKeyByKeyId(
+                        callingUid,
+                        descriptor.nspace,
+                    )
                     ?.let { info ->
                         KeyMintSecurityLevelInterceptor.generatedKeys.entries
-                            .firstOrNull { it.value.nspace == info.nspace && it.key.uid == callingUid }
+                            .firstOrNull {
+                                it.value.nspace == info.nspace && it.key.uid == callingUid
+                            }
                             ?.key
                     }
             else -> null
         }
 
+    /**
+     * Records the certificate chain actually served back to [uid] on a getKeyEntry, keyed by
+     * [alias]. The app reassembles its final chain from these served chains (the leaf alias plus
+     * the attest-key alias), so logging each one with key sizes and a per-edge verification makes a
+     * verification failure in the app's combined chain reproducible from the log, not inferred.
+     */
+    private fun logServedChain(uid: Int, txId: Long, alias: String, response: KeyEntryResponse?) {
+        if (response == null || !SystemLogger.isUidLogged(uid)) return
+        val chain = CertificateHelper.getCertificateChain(response)?.asList() ?: return
+        SystemLogger.uidLog(uid, txId, "served", "alias=$alias depth=${chain.size}")
+        SystemLogger.uidLog(uid, txId, "served-keys", AttestationPatcher.formatChainKeys(chain))
+        SystemLogger.uidLog(uid, txId, "served-verify", AttestationPatcher.formatChainVerification(chain))
+    }
+
     private fun handleUpdateSubcomponent(callingUid: Int, data: Parcel): TransactionResult {
         data.enforceInterface(IKeystoreService.DESCRIPTOR)
-        val descriptor = data.readTypedObject(KeyDescriptor.CREATOR)
-            ?: return TransactionResult.ContinueAndSkipPost
+        val descriptor =
+            data.readTypedObject(KeyDescriptor.CREATOR)
+                ?: return TransactionResult.ContinueAndSkipPost
+
+        if (descriptor.domain == Domain.GRANT) {
+            val grant =
+                KeyMintSecurityLevelInterceptor.resolveGrant(descriptor.nspace, callingUid)
+            if (grant == null) {
+                return if (
+                    KeyMintSecurityLevelInterceptor.softwareGrants.containsKey(descriptor.nspace)
+                )
+                    InterceptorUtils.createErrorReply(RESPONSE_KEY_NOT_FOUND)
+                else TransactionResult.ContinueAndSkipPost
+            }
+            if ((grant.accessVector and KEY_PERMISSION_UPDATE) == 0) {
+                return InterceptorUtils.createErrorReply(RESPONSE_PERMISSION_DENIED)
+            }
+
+            val generatedKeyInfo =
+                KeyMintSecurityLevelInterceptor.generatedKeys[grant.ownerKeyId]
+            val response =
+                generatedKeyInfo?.response
+                    ?: KeyMintSecurityLevelInterceptor.getGeneratedKeyResponse(grant.ownerKeyId)
+                    ?: return InterceptorUtils.createErrorReply(RESPONSE_KEY_NOT_FOUND)
+            return updateResponseSubcomponent(
+                response = response,
+                publicCert = data.createByteArray(),
+                certificateChain = data.createByteArray(),
+                persist = {
+                    if (generatedKeyInfo != null) {
+                        GeneratedKeyPersistence.rePersistIfNeeded(
+                            grant.ownerKeyId.uid,
+                            generatedKeyInfo,
+                        )
+                    }
+                },
+                label = "grant[${descriptor.nspace}] -> ${grant.ownerKeyId}",
+            )
+        }
 
         val generatedKeyInfo =
             when (descriptor.domain) {
                 Domain.KEY_ID ->
                     KeyMintSecurityLevelInterceptor.findGeneratedKeyByKeyId(
-                        callingUid, descriptor.nspace
+                        callingUid,
+                        descriptor.nspace,
                     )
                 Domain.APP ->
                     descriptor.alias?.let {
@@ -659,35 +776,58 @@ object Keystore2Interceptor : AbstractKeystoreInterceptor() {
             }
 
         if (generatedKeyInfo == null) {
-            // Patch-mode key (cached in teeResponses, not generatedKeys): the real keystore2 applies
+            // Patch-mode key (cached in teeResponses, not generatedKeys): the real keystore2
+            // applies
             // the update, so drop our stale cached chain. Otherwise getKeyEntry replays the
             // pre-update generated attestation (duck STALE_TEE_RESPONSE_AFTER_KEY_ID_UPDATE).
             when (descriptor.domain) {
                 Domain.KEY_ID ->
-                    KeyMintSecurityLevelInterceptor.evictTeeResponseByKeyId(callingUid, descriptor.nspace)
+                    KeyMintSecurityLevelInterceptor.evictTeeResponseByKeyId(
+                        callingUid,
+                        descriptor.nspace,
+                    )
                 Domain.APP ->
                     descriptor.alias?.let {
-                        KeyMintSecurityLevelInterceptor.evictTeeResponse(KeyIdentifier(callingUid, it))
+                        KeyMintSecurityLevelInterceptor.evictTeeResponse(
+                            KeyIdentifier(callingUid, it)
+                        )
                     }
                 else -> {}
             }
             descriptor.alias?.let {
                 val kid = KeyIdentifier(callingUid, it)
                 userUpdatedKeys.add(kid)
-                SystemLogger.trace { "[TRACE] updateSubcomponent $kid: not generated key, added to userUpdatedKeys" }
+                SystemLogger.trace {
+                    "[TRACE] updateSubcomponent $kid: not generated key, added to userUpdatedKeys"
+                }
             }
             return TransactionResult.ContinueAndSkipPost
         }
 
-        SystemLogger.info("Updating sub-component with key[${generatedKeyInfo.nspace}]")
-        val metadata = generatedKeyInfo.response.metadata
-        val publicCert = data.createByteArray()
-        val certificateChain = data.createByteArray()
+        return updateResponseSubcomponent(
+            response = generatedKeyInfo.response,
+            publicCert = data.createByteArray(),
+            certificateChain = data.createByteArray(),
+            persist = {
+                GeneratedKeyPersistence.rePersistIfNeeded(callingUid, generatedKeyInfo)
+            },
+            label = "key[${generatedKeyInfo.nspace}]",
+        )
+    }
 
+    private fun updateResponseSubcomponent(
+        response: KeyEntryResponse,
+        publicCert: ByteArray?,
+        certificateChain: ByteArray?,
+        persist: () -> Unit,
+        label: String,
+    ): TransactionResult {
+        SystemLogger.info("Updating sub-component with $label")
+        val metadata = response.metadata
         metadata.certificate = publicCert
         metadata.certificateChain = certificateChain
 
-        GeneratedKeyPersistence.rePersistIfNeeded(callingUid, generatedKeyInfo)
+        persist()
 
         SystemLogger.verbose(
             "Key updated with sizes: [publicCert, certificateChain] = [${publicCert?.size}, ${certificateChain?.size}]"

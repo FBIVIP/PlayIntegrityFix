@@ -65,7 +65,7 @@ chmod 755 "$MODPATH/daemon"
 ui_print ""
 
 ui_print "- Extracting $ARCH libraries"
-install_file "lib/$ABI_DIR/libintegrityfateh7.so" "$MODPATH"
+install_file "lib/$ABI_DIR/libTEESimulator.so" "$MODPATH"
 install_file "lib/$ABI_DIR/libinject.so" "$MODPATH"
 install_file "lib/$ABI_DIR/libsupervisor.so" "$MODPATH"
 install_file "lib/$ABI_DIR/libcertgen.so" "$MODPATH"
@@ -75,6 +75,20 @@ mv "$MODPATH/libinject.so" "$MODPATH/inject"
 mv "$MODPATH/libsupervisor.so" "$MODPATH/supervisor"
 chmod 755 "$MODPATH/inject"
 chmod 755 "$MODPATH/supervisor"
+
+# Debug builds carry diag.sh (the diagnostic plane); release builds do not. Extract it when
+# present; otherwise sweep any external-storage diagnostics a prior debug install left behind,
+# since the release keystore domain has no grant to remove them itself.
+# Detect presence by the extracted FILE, not unzip's exit code: the busybox/toybox unzip in
+# the install environment exits 0 even when the entry is absent, so the sweep never ran.
+unzip -qqjo "$ZIPFILE" "diag.sh" -d "$MODPATH" 2>/dev/null
+if [ -f "$MODPATH/diag.sh" ]; then
+  chmod 644 "$MODPATH/diag.sh"
+  ui_print "- Debug diagnostic plane enabled"
+else
+  rm -rf /data/media/0/TEESimulator /data/local/tmp/teesim
+  ui_print "- Release build: swept stale diagnostics"
+fi
 
 # --- Configuration Files ---
 if [ ! -d "$CONFIG_DIR" ]; then

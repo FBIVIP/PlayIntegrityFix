@@ -7,18 +7,18 @@ import android.system.keystore2.Domain
 import android.system.keystore2.KeyDescriptor
 import org.matrix.TEESimulator.interception.core.BinderInterceptor
 import org.matrix.TEESimulator.interception.keystore.shim.KeyMintSecurityLevelInterceptor
-import org.matrix.TEESimulator.logging.SystemLogger
 
 /**
  * Intercepts the keystore2 daemon's `android.security.maintenance` binder so our synthetic key
  * state follows the same lifecycle events the platform applies to real keys.
  *
  * This is a pure side-effect hook: every handled transaction mutates only our own synthetic state
- * and then returns [TransactionResult.ContinueAndSkipPost], so the real keystore2 still performs the
- * real operation. We never fabricate a maintenance reply, so real key lifecycle is never disturbed.
+ * and then returns [TransactionResult.ContinueAndSkipPost], so the real keystore2 still performs
+ * the real operation. We never fabricate a maintenance reply, so real key lifecycle is never
+ * disturbed.
  *
- * Mounted via `register()` from [Keystore2Interceptor.onInterceptorReady]; the maintenance binder is
- * hosted by the same keystore2 process, so the already-injected native hook reaches it too.
+ * Mounted via `register()` from [Keystore2Interceptor.onInterceptorReady]; the maintenance binder
+ * is hosted by the same keystore2 process, so the already-injected native hook reaches it too.
  */
 object Keystore2MaintenanceInterceptor : BinderInterceptor() {
     private val stubClass = IKeystoreMaintenance.Stub::class.java
@@ -93,13 +93,18 @@ object Keystore2MaintenanceInterceptor : BinderInterceptor() {
             descriptor.alias != null -> KeyIdentifier(callingUid, descriptor.alias)
             descriptor.domain == Domain.KEY_ID ->
                 KeyMintSecurityLevelInterceptor.generatedKeys.entries
-                    .firstOrNull { it.key.uid == callingUid && it.value.nspace == descriptor.nspace }
+                    .firstOrNull {
+                        it.key.uid == callingUid && it.value.nspace == descriptor.nspace
+                    }
                     ?.key
             else -> null
         }
 
     /** Destination must be an addressable Domain.APP alias for us to keep tracking the key. */
-    private fun resolveDestinationKeyId(descriptor: KeyDescriptor, callingUid: Int): KeyIdentifier? {
+    private fun resolveDestinationKeyId(
+        descriptor: KeyDescriptor,
+        callingUid: Int,
+    ): KeyIdentifier? {
         val alias = descriptor.alias ?: return null
         if (descriptor.domain != Domain.APP) return null
         val uid = if (descriptor.nspace > 0) descriptor.nspace.toInt() else callingUid

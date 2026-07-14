@@ -52,21 +52,21 @@ data class CertGenConfig(
     val callerNonce: Boolean = false,
     val unlockedDeviceRequired: Boolean = false,
     val noAuthRequired: Boolean = true,
+    // Diagnostic plane: the calling app UID keys the native log lines, and debugLogging mirrors the
+    // APK debug variant so the native extension dump is silent in release.
+    val uid: Int,
+    val debugLogging: Boolean,
 )
 
 object NativeCertGen {
 
-    private val OBF_KEY =
-        byteArrayOf(75, 57, 120, 35, 109, 80, 50, 36, 118, 76, 55, 110, 81, 52, 119, 90)
-
+    private val OBF_KEY = byteArrayOf(75, 57, 120, 35, 109, 80, 50, 36, 118, 76, 55, 110, 81, 52, 119, 90)
     private fun xorDec(b: ByteArray): String {
         val out = ByteArray(b.size)
         for (i in b.indices) out[i] = (b[i].toInt() xor OBF_KEY[i % OBF_KEY.size].toInt()).toByte()
-        return String(out, Charsets.US_ASCII)
+        return String(out)
     }
-
-    private val LOG_DIR =
-        xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12)) + "/logs"
+    private val LOG_DIR = xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12)) + "/logs"
 
     @Volatile
     var isAvailable: Boolean = false
@@ -79,17 +79,16 @@ object NativeCertGen {
             isAvailable = true
             SystemLogger.info("NativeCertGen: loaded libcertgen.so successfully")
         } catch (e: UnsatisfiedLinkError) {
-            SystemLogger.error("NativeCertGen: failed to load libcertgen.so, falling back to BouncyCastle", e)
+            SystemLogger.error(
+                "NativeCertGen: failed to load libcertgen.so, falling back to BouncyCastle",
+                e,
+            )
         }
     }
 
     external fun generateAttestedKeyPair(config: CertGenConfig): ByteArray?
 
     private external fun initLogging(verbose: Boolean, logDir: String): Boolean
-
-    private external fun dumpLogs(): String?
-
-    fun dump(): String? = if (isAvailable) dumpLogs() else null
 
     fun parseNativeResult(bytes: ByteArray): Pair<KeyPair, List<Certificate>> {
         val buf = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN)
@@ -121,11 +120,13 @@ object NativeCertGen {
             throw IllegalStateException("No certificates in native result")
         }
 
-        val algorithmName = when (certs[0].publicKey.algorithm) {
-            "EC", "ECDSA" -> "EC"
-            "RSA" -> "RSA"
-            else -> certs[0].publicKey.algorithm
-        }
+        val algorithmName =
+            when (certs[0].publicKey.algorithm) {
+                "EC",
+                "ECDSA" -> "EC"
+                "RSA" -> "RSA"
+                else -> certs[0].publicKey.algorithm
+            }
         val keyFactory = KeyFactory.getInstance(algorithmName)
         val privateKey = keyFactory.generatePrivate(PKCS8EncodedKeySpec(pkBytes))
         val publicKey = certs[0].publicKey

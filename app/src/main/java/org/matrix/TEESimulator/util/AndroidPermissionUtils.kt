@@ -12,14 +12,17 @@ object AndroidPermissionUtils {
         return try {
             // 1. Get the hidden ActivityThread class via reflection
             val activityThreadClass = Class.forName("android.app.ActivityThread")
-            
+
             // 2. Invoke the static currentActivityThread() method
-            val currentActivityThreadMethod = activityThreadClass.getDeclaredMethod("currentActivityThread")
+            val currentActivityThreadMethod =
+                activityThreadClass.getDeclaredMethod("currentActivityThread")
             currentActivityThreadMethod.isAccessible = true
             val activityThread = currentActivityThreadMethod.invoke(null)
-            
+
             if (activityThread == null) {
-                SystemLogger.warning("Reflection: ActivityThread.currentActivityThread() returned null")
+                SystemLogger.warning(
+                    "Reflection: ActivityThread.currentActivityThread() returned null"
+                )
                 return null
             }
 
@@ -27,29 +30,31 @@ object AndroidPermissionUtils {
             val getApplicationMethod = activityThreadClass.getDeclaredMethod("getApplication")
             getApplicationMethod.isAccessible = true
             val application = getApplicationMethod.invoke(activityThread) as? Context
-            
+
             if (application != null) return application
 
-            // 4. Fallback to getSystemContext() if application is null (often happens in system_server)
+            // 4. Fallback to getSystemContext() if application is null (often happens in
+            // system_server)
             val getSystemContextMethod = activityThreadClass.getDeclaredMethod("getSystemContext")
             getSystemContextMethod.isAccessible = true
             getSystemContextMethod.invoke(activityThread) as? Context
-
         } catch (e: Exception) {
             SystemLogger.error("Reflection failed to get global context for permission check", e)
             null
         }
     }
 
-    /**
-     * Core permission check.
-     */
+    /** Core permission check. */
     fun hasPermission(uid: Int, permission: String): Boolean {
-        val context = getGlobalContext() ?: run {
-            SystemLogger.warning("AndroidPermissionUtils: Context is null, failing permission check safely.")
-            return false
-        }
-        
+        val context =
+            getGlobalContext()
+                ?: run {
+                    SystemLogger.warning(
+                        "AndroidPermissionUtils: Context is null, failing permission check safely."
+                    )
+                    return false
+                }
+
         val result = context.checkPermission(permission, -1, uid)
         return result == PackageManager.PERMISSION_GRANTED
     }

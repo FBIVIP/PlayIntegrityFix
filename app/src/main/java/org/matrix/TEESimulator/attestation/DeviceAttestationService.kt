@@ -1,7 +1,7 @@
 package org.matrix.TEESimulator.attestation
 
 import android.annotation.SuppressLint
-import android.os.Build
+import android.security.KeyStoreException
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyPairGenerator
@@ -9,6 +9,9 @@ import java.security.KeyStore
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.security.spec.ECGenParameterSpec
+import java.security.spec.RSAKeyGenParameterSpec
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import org.bouncycastle.asn1.ASN1Integer
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1OctetString
@@ -17,6 +20,7 @@ import org.bouncycastle.asn1.ASN1TaggedObject
 import org.bouncycastle.asn1.x509.Extension
 import org.bouncycastle.cert.X509CertificateHolder
 import org.matrix.TEESimulator.logging.SystemLogger
+import org.matrix.TEESimulator.util.AndroidDeviceUtils
 import org.matrix.TEESimulator.util.toHex
 
 /**
@@ -61,22 +65,63 @@ object DeviceAttestationService {
     // A unique alias for the key used to perform the TEE functionality check.
     private const val TEE_CHECK_KEY_ALIAS = "TEESimulator_AttestationCheck"
 
-    // Alias for the device-ID attestation capability probe.
-    private const val DEVICE_ID_CHECK_KEY_ALIAS = "TEESimulator_DeviceIdCheck"
-
     /**
      * Lazily determines if the device's TEE is functional by attempting to generate an
      * attestation-backed key pair. The result is cached.
      */
     val isTeeFunctional: Boolean by lazy { checkTeeFunctionality() }
 
+    // Per (algorithm, security-level) attestation-capability verdicts, keyed by probe-key alias.
+    // A device may attest one algorithm or security level yet lack a provisioned attestation key
+    // for another (e.g. a TEE that attests RSA over a StrongBox that cannot), so each pair is
+    // probed and cached on its own.
+    private data class ProbeSpec(
+        val algorithm: String,
+        val strongBox: Boolean,
+        val keyAlias: String,
+    )
+
+    private val rsaTeeProbe =
+        ProbeSpec(KeyProperties.KEY_ALGORITHM_RSA, false, "TEESimulator_RsaAttestCheck")
+    private val rsaStrongBoxProbe =
+        ProbeSpec(KeyProperties.KEY_ALGORITHM_RSA, true, "TEESimulator_RsaAttestCheckSb")
+    private val ecTeeProbe =
+        ProbeSpec(KeyProperties.KEY_ALGORITHM_EC, false, "TEESimulator_EcAttestCheck")
+    private val ecStrongBoxProbe =
+        ProbeSpec(KeyProperties.KEY_ALGORITHM_EC, true, "TEESimulator_EcAttestCheckSb")
+
+    private val attestableVerdicts = ConcurrentHashMap<String, Boolean>()
+    private val attestProbesInFlight = ConcurrentHashMap<String, AtomicBoolean>()
+
     /**
-     * Lazily mirrors whether the real TEE can attest device identifiers/properties (the tags added
-     * by `setDevicePropertiesAttestationIncluded`). Hardware that never provisioned device IDs
-     * returns CANNOT_ATTEST_IDS; the synthesizer consults this so it never forges a capability the
-     * real silicon lacks. Cached.
+     * Whether the real hardware can attest an RSA key at the requested security level. AUTO dispatch
+     * reads this to forge RSA attestation only where the hardware genuinely cannot serve it.
+     *
+     * Only a definitive verdict is cached: a successful probe, or a permanent keystore failure. A
+     * transient or unrecognized failure leaves the verdict unset and reports attestable, so dispatch
+     * PATCHes the genuine chain and re-probes next read — a one-off keystore hiccup can never freeze
+     * the device into forging an attestation it could serve.
      */
-    val canAttestDeviceIds: Boolean by lazy { checkDeviceIdAttestation() }
+    fun isRsaAttestable(strongBox: Boolean): Boolean =
+        isHardwareAttestable(if (strongBox) rsaStrongBoxProbe else rsaTeeProbe)
+
+    /** Whether the real hardware can attest an EC key at the requested security level. */
+    fun isEcAttestable(strongBox: Boolean): Boolean =
+        isHardwareAttestable(if (strongBox) ecStrongBoxProbe else ecTeeProbe)
+
+    private fun isHardwareAttestable(probe: ProbeSpec): Boolean {
+        attestableVerdicts[probe.keyAlias]?.let { return it }
+        val probeInFlight =
+            attestProbesInFlight.computeIfAbsent(probe.keyAlias) { AtomicBoolean(false) }
+        if (probeInFlight.compareAndSet(false, true)) {
+            try {
+                probeAttestability(probe)?.let { attestableVerdicts[probe.keyAlias] = it }
+            } finally {
+                probeInFlight.set(false)
+            }
+        }
+        return attestableVerdicts[probe.keyAlias] ?: true
+    }
 
     /**
      * Lazily fetches and parses attestation data from a genuinely generated certificate. The result
@@ -119,33 +164,80 @@ object DeviceAttestationService {
     }
 
     /**
-     * Probes whether the real TEE can satisfy device-ID/property attestation, mirroring its actual
-     * capability. Gated behind [isTeeFunctional] so a dead TEE never triggers a second doomed
-     * probe — it simply reports `false` (cannot attest), the faithful result for such hardware.
+     * Probes whether the real hardware can attest a key matching [probe] by generating one with an
+     * attestation challenge at the probe's algorithm and security level. Mirrors
+     * [checkTeeFunctionality]; the request runs as the module UID, so it is skipped by interception
+     * and reaches genuine hardware rather than the forge path.
+     *
+     * @return `true` if attestation succeeded, `false` only on a confirmed attestation-keys-
+     *   unavailable failure, or `null` on a transient or unrecognized failure where the caller
+     *   fails open and re-probes.
      */
-    private fun checkDeviceIdAttestation(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-        if (!isTeeFunctional) return false
+    private fun probeAttestability(probe: ProbeSpec): Boolean? {
+        val label = "${probe.algorithm} attestation (strongBox=${probe.strongBox})"
+        SystemLogger.info("Performing $label capability check...")
         return try {
-            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
             val keyPairGenerator =
-                KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
+                KeyPairGenerator.getInstance(probe.algorithm, "AndroidKeyStore")
+
             val challenge = ByteArray(16).apply { SecureRandom().nextBytes(this) }
-            val spec =
-                KeyGenParameterSpec.Builder(DEVICE_ID_CHECK_KEY_ALIAS, KeyProperties.PURPOSE_SIGN)
-                    .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+
+            val builder =
+                KeyGenParameterSpec.Builder(probe.keyAlias, KeyProperties.PURPOSE_SIGN)
                     .setDigests(KeyProperties.DIGEST_SHA256)
                     .setAttestationChallenge(challenge)
-                    .setDevicePropertiesAttestationIncluded(true)
-                    .build()
-            keyPairGenerator.initialize(spec)
+                    .setIsStrongBoxBacked(probe.strongBox)
+            if (probe.algorithm == KeyProperties.KEY_ALGORITHM_RSA) {
+                builder
+                    .setAlgorithmParameterSpec(RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
+                    .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+            } else {
+                builder.setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+            }
+
+            keyPairGenerator.initialize(builder.build())
             keyPairGenerator.generateKeyPair()
-            runCatching { keyStore.deleteEntry(DEVICE_ID_CHECK_KEY_ALIAS) }
-            SystemLogger.info("Device-ID attestation supported by TEE.")
+
+            SystemLogger.info("$label capability check successful.")
             true
-        } catch (_: Exception) {
-            SystemLogger.info("Device-ID attestation not supported by TEE; mirroring as cannot-attest.")
-            false
+        } catch (e: Exception) {
+            if (isAttestationUnavailable(e)) {
+                SystemLogger.info("$label unsupported by hardware; AUTO will forge attestation.")
+                false
+            } else {
+                SystemLogger.warning(
+                    "$label capability check failed transiently; treating as capable.",
+                    e,
+                )
+                null
+            }
+        } finally {
+            deleteProbeKey(probe.keyAlias)
+        }
+    }
+
+    /**
+     * Whether [error] definitively means the hardware cannot attest the probed key: a permanent
+     * [KeyStoreException] from the keystore. Transient failures and non-keystore errors return
+     * `false`, so the caller fails open and re-probes rather than caching a guess. The probe runs a
+     * fixed, valid spec as root, so its only permanent keystore failure mode is missing attestation
+     * support; [KeyStoreException.isTransientFailure] draws the transient/permanent line.
+     */
+    private fun isAttestationUnavailable(error: Throwable): Boolean {
+        var cause: Throwable? = error
+        while (cause != null) {
+            val keyStoreError = cause as? KeyStoreException
+            if (keyStoreError != null) return !keyStoreError.isTransientFailure
+            cause = cause.cause
+        }
+        return false
+    }
+
+    private fun deleteProbeKey(keyAlias: String) {
+        try {
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(keyAlias)
+        } catch (e: Exception) {
+            SystemLogger.warning("Failed to delete attestation probe key.", e)
         }
     }
 
@@ -192,19 +284,23 @@ object DeviceAttestationService {
             // The extension's value is an ASN.1 sequence.
             val keyDescriptionSeq = ASN1Sequence.getInstance(extension.extnValue.octets)
             SystemLogger.verbose {
-                val formattedString = keyDescriptionSeq.joinToString(separator = ", ") {
-                    AttestationPatcher.formatAsn1Primitive(it)
-                }
+                val formattedString =
+                    keyDescriptionSeq.joinToString(separator = ", ") {
+                        AttestationPatcher.formatAsn1Primitive(it)
+                    }
                 "Cached attestation data: $formattedString"
             }
             val fields = keyDescriptionSeq.toArray()
 
-            val attestVersion =
+            val deviceAttestVersion =
                 ASN1Integer.getInstance(
                         fields[AttestationConstants.KEY_DESCRIPTION_ATTESTATION_VERSION_INDEX]
                     )
                     .positiveValue
                     .toInt()
+            // The device KeyMint HAL can report a version below its OS's AOSP value (100 on an A16
+            // where BAKLAVA mandates 400); cache the AOSP value so the forge matches an updated device.
+            val attestVersion = AndroidDeviceUtils.aospAttestVersion ?: deviceAttestVersion
             val keymasterVersion =
                 ASN1Integer.getInstance(
                         fields[AttestationConstants.KEY_DESCRIPTION_KEYMINT_VERSION_INDEX]
@@ -298,7 +394,7 @@ object DeviceAttestationService {
             }
 
             SystemLogger.info(
-                "Successfully extracted attestation data: version=$attestVersion, osVersion=$osVersion, osPatch=$osPatchLevel, vendorPatch=$vendorPatchLevel, bootPatch=$bootPatchLevel, moduleHash=${moduleHash?.toHex()}, bootKey=${verifiedBootKey?.toHex()}, bootHash=${verifiedBootHash?.toHex()}"
+                "Successfully extracted attestation data: version=$deviceAttestVersion, osVersion=$osVersion, osPatch=$osPatchLevel, vendorPatch=$vendorPatchLevel, bootPatch=$bootPatchLevel, moduleHash=${moduleHash?.toHex()}, bootKey=${verifiedBootKey?.toHex()}, bootHash=${verifiedBootHash?.toHex()}"
             )
             return AttestationData(
                 moduleHash,

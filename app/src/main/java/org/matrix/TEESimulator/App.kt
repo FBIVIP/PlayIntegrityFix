@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.os.Build
 import android.os.Looper
-import java.io.File
 import java.security.Security
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.matrix.TEESimulator.config.BootStateManager
@@ -14,6 +13,7 @@ import org.matrix.TEESimulator.config.ConfigurationManager
 import org.matrix.TEESimulator.interception.keystore.AbstractKeystoreInterceptor
 import org.matrix.TEESimulator.interception.keystore.Keystore2Interceptor
 import org.matrix.TEESimulator.interception.keystore.KeystoreInterceptor
+import org.matrix.TEESimulator.interception.soter.SoterProcessSupervisor
 import org.matrix.TEESimulator.logging.SystemLogger
 import org.matrix.TEESimulator.pki.NativeCertGen
 import org.matrix.TEESimulator.util.AndroidDeviceUtils
@@ -40,8 +40,7 @@ object App {
         }
 
         try {
-            purgeDebugDiagnostics()
-            prepareEnvironment()
+            val systemContext = prepareEnvironment()
 
             // Spoof boot-state props before any hook attaches, so keystore2's
             // cached snapshot reflects the spoofed values.
@@ -64,6 +63,10 @@ object App {
 
             NativeCertGen.initialize("/data/adb/modules/integrityfateh7/libcertgen.so")
 
+            // Mount the SOTER forge on the on-demand soterserver process. The supervisor
+            // binds and (re)injects on its own thread, returning at once so it never blocks the loop.
+            SoterProcessSupervisor.start(systemContext)
+
             // This starts the message queue processing. It blocks here indefinitely
             // processing messages until Looper.myLooper().quit() is called.
             Looper.loop()
@@ -73,27 +76,8 @@ object App {
         }
     }
 
-    /**
-     * Release builds never emit diagnostics. Sweep any `.bin` dumps a prior
-     * debug install left in the world-readable temp dir so they can't act as a
-     * detection artifact for apps that probe /data/local/tmp.
-     */
-    private fun purgeDebugDiagnostics() {
-        if (SystemLogger.isDebugBuild) return
-        val stale =
-            File("/data/local/tmp").listFiles { _, name ->
-                name.startsWith("teesim-") && name.endsWith(".bin")
-            } ?: return
-        stale.forEach { runCatching { it.delete() } }
-        if (stale.isNotEmpty()) {
-            // warning() bypasses the rate limiter, so this once-per-boot audit
-            // line survives the noisy startup window.
-            SystemLogger.warning("Purged ${stale.size} stale debug diagnostic(s) from /data/local/tmp")
-        }
-    }
-
     /** Initializes the necessary Android framework internals to satisfy KeyStore requirements. */
-    private fun prepareEnvironment() {
+    private fun prepareEnvironment(): Context {
         // 1. Prepare Main Looper
         if (Looper.getMainLooper() == null) {
             @Suppress("deprecation") Looper.prepareMainLooper()
@@ -102,8 +86,10 @@ object App {
         // 2. Initialize ActivityThread for the current process
         val activityThread = ActivityThread.systemMain()
 
-        // 3. Get the system context
-        val systemContext = activityThread.getSystemContext()
+        // 3. Get the system context. The stub declares getSystemContext(): ContextImpl
+        //    (a bare class), so cast to the Context it really is at runtime for the wiring.
+        @Suppress("CAST_NEVER_SUCCEEDS")
+        val systemContext = activityThread.getSystemContext() as Context
 
         // 4. Create a dummy Application object and attach the context
         val app = Application()
@@ -118,6 +104,8 @@ object App {
             ActivityThread::class.java.getDeclaredField("mInitialApplication")
         mInitialApplicationField.isAccessible = true
         mInitialApplicationField.set(activityThread, app)
+
+        return systemContext
     }
 
     /**

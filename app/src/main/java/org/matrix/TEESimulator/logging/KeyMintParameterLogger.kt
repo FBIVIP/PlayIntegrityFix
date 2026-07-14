@@ -69,12 +69,23 @@ object KeyMintParameterLogger {
             .associate { field -> (field.get(null) as Int) to field.name }
     }
 
-    /**
-     * Logs a single KeyParameter in a formatted, readable way.
-     *
-     * @param param The KeyParameter to log.
-     */
+    /** Logs a single KeyParameter to the shared debug stream (used for un-scoped param dumps). */
     fun logParameter(param: KeyParameter) {
+        SystemLogger.debug("KeyParam: ${describe(param)}")
+    }
+
+    /** Logs a single KeyParameter onto a targeted UID's diagnostic plane as a `param` record. */
+    fun logParameter(uid: Int, txId: Long, param: KeyParameter) {
+        SystemLogger.uidLog(uid, txId, "param", describe(param))
+    }
+
+    /**
+     * Formats a single KeyParameter into a readable `tag | Value` string. Shared by both
+     * [logParameter] overloads so the two logging planes render parameters identically.
+     *
+     * @param param The KeyParameter to format.
+     */
+    private fun describe(param: KeyParameter): String {
         val tagName = tagNames[param.tag] ?: "UNKNOWN_TAG"
         val value = param.value
         val formattedValue: String =
@@ -110,7 +121,7 @@ object KeyMintParameterLogger {
                 else -> "<raw>"
             } ?: "Unknown Value"
 
-        SystemLogger.debug("KeyParam: %-25s | Value: %s".format(tagName, formattedValue))
+        return "%-25s | Value: %s".format(tagName, formattedValue)
     }
 
     private fun ByteArray.toReadableString(): String {

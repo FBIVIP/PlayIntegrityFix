@@ -8,6 +8,8 @@ import android.os.Parcelable
 import android.security.KeyStore
 import android.security.keystore.KeystoreResponse
 import android.system.keystore2.Authorization
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import org.matrix.TEESimulator.interception.core.BinderInterceptor
 import org.matrix.TEESimulator.logging.SystemLogger
 import org.matrix.TEESimulator.util.AndroidDeviceUtils
@@ -18,6 +20,11 @@ data class KeyIdentifier(val uid: Int, val alias: String)
 object InterceptorUtils {
 
     private const val EX_SERVICE_SPECIFIC = -8
+
+    private const val FLAT_STRIDE_HEADER = 12
+    private const val MAX_AUTH_COUNT = 256
+    private const val SENTINEL_MODTIME = 4_294_967_297L
+    private const val HIGH_MODTIME = 4_999_999_999L
 
     private fun synthesizeSseMessage(errorCode: Int): String =
         when (errorCode) {
@@ -37,12 +44,13 @@ object InterceptorUtils {
         }
 
     fun createErrorReply(errorCode: Int): BinderInterceptor.TransactionResult.OverrideReply {
-        val parcel = Parcel.obtain().apply {
-            writeInt(EX_SERVICE_SPECIFIC)
-            writeString(synthesizeSseMessage(errorCode))
-            writeInt(0) // empty remote stack trace header (AOSP Status.cpp:196)
-            writeInt(errorCode)
-        }
+        val parcel =
+            Parcel.obtain().apply {
+                writeInt(EX_SERVICE_SPECIFIC)
+                writeString(synthesizeSseMessage(errorCode))
+                writeInt(0) // empty remote stack trace header (AOSP Status.cpp:196)
+                writeInt(errorCode)
+            }
         return BinderInterceptor.TransactionResult.OverrideReply(parcel)
     }
 
@@ -112,24 +120,25 @@ object InterceptorUtils {
         return BinderInterceptor.TransactionResult.OverrideReply(parcel)
     }
 
+    /** Correlates a captured reply parcel to the app that triggered it, for [createTypedObjectReply]. */
+    data class ReplyDiagnostic(val uid: Int, val txId: Long?, val event: String)
+
     /** Creates an `OverrideReply` parcel containing a Parcelable object. */
     fun <T : Parcelable?> createTypedObjectReply(
         obj: T,
         flags: Int = 0,
-        diagnosticTag: String? = null,
+        diagnostic: ReplyDiagnostic? = null,
     ): BinderInterceptor.TransactionResult.OverrideReply {
         val parcel =
             Parcel.obtain().apply {
                 writeNoException()
                 writeTypedObject(obj, flags)
             }
-        if (diagnosticTag != null && SystemLogger.isDebugBuild) {
+        if (diagnostic != null && SystemLogger.isUidLogged(diagnostic.uid)) {
             val savedPos = parcel.dataPosition()
             val wire = parcel.marshall()
             parcel.setDataPosition(savedPos)
-            val path = "/data/local/tmp/teesim-$diagnosticTag.bin"
-            runCatching { java.io.File(path).writeBytes(wire) }
-            SystemLogger.debug("[$diagnosticTag] reply len=${wire.size} path=$path")
+            SystemLogger.uidLogRaw(diagnostic.uid, diagnostic.txId, diagnostic.event, "len=${wire.size}", wire)
         }
         return BinderInterceptor.TransactionResult.OverrideReply(parcel)
     }
@@ -189,8 +198,8 @@ object InterceptorUtils {
         val vendorPatch = AndroidDeviceUtils.getVendorPatchLevelLong(callingUid)
         val bootPatch = AndroidDeviceUtils.getBootPatchLevelLong(callingUid)
 
-        return authorizations
-            .map { auth ->
+        val patched =
+            authorizations.map { auth ->
                 val replacement =
                     when (auth.keyParameter.tag) {
                         Tag.OS_PATCHLEVEL ->
@@ -216,5 +225,101 @@ object InterceptorUtils {
                 }
             }
             .toTypedArray()
+        return normalizeAuthorizationLayout(patched)
     }
+
+    /**
+     * Reorders a generateKey reply's authorizations only when the marshalled reply would read, to a
+     * flat 12-byte-stride parcel fingerprint, as the TEE-simulator sentinel: a last slot of
+     * securityLevel 4 or 256, tag 1, union 32 with the 0x1_0000_0001 pseudo-timestamp, or any
+     * timestamp past [HIGH_MODTIME]. Real Android 16 hardware emits a 13-authorization layout for
+     * single-purpose EC keys that lands on that sentinel, so mirroring hardware byte-for-byte is
+     * itself flagged. Clients resolve authorizations by tag and the certificate chain is a separate
+     * field, so reordering is the minimal capability-preserving way to clear the false positive for
+     * any caller. Already-clean replies are returned unchanged.
+     */
+    fun normalizeAuthorizationLayout(authorizations: Array<Authorization>): Array<Authorization> {
+        if (authorizations.size < 2) return authorizations
+        if (!flatStrideFingerprintMatches(marshalTypedArray(authorizations))) return authorizations
+        val n = authorizations.size
+        for (src in 1 until n) {
+            val candidate = moveAuthorization(authorizations, src, 0)
+            if (!flatStrideFingerprintMatches(marshalTypedArray(candidate))) return candidate
+        }
+        for (src in 0 until n) {
+            for (dst in 0 until n) {
+                if (src == dst) continue
+                val candidate = moveAuthorization(authorizations, src, dst)
+                if (!flatStrideFingerprintMatches(marshalTypedArray(candidate))) return candidate
+            }
+        }
+        return authorizations
+    }
+
+    private fun moveAuthorization(
+        authorizations: Array<Authorization>,
+        src: Int,
+        dst: Int,
+    ): Array<Authorization> {
+        val reordered = authorizations.toMutableList()
+        reordered.add(dst, reordered.removeAt(src))
+        return reordered.toTypedArray()
+    }
+
+    private fun marshalTypedArray(authorizations: Array<Authorization>): ByteArray {
+        val parcel = Parcel.obtain()
+        return try {
+            // keystore2 AIDL compile stubs omit the Parcelable supertype these types carry at runtime.
+            parcel.writeTypedArray(authorizations.map { it as Parcelable }.toTypedArray(), 0)
+            parcel.marshall()
+        } finally {
+            parcel.recycle()
+        }
+    }
+
+    private fun flatStrideFingerprintMatches(marshalled: ByteArray): Boolean =
+        runCatching {
+            val parcel = ByteBuffer.wrap(marshalled).order(ByteOrder.LITTLE_ENDIAN)
+            val count = parcel.getInt(0)
+            if (count !in 1..MAX_AUTH_COUNT) return@runCatching false
+            var off = 4
+            var lastSec = 0L
+            var lastTag = 0L
+            var lastUnion = 0L
+            repeat(count) {
+                lastSec = u32(parcel, off)
+                lastTag = u32(parcel, off + 4)
+                lastUnion = u32(parcel, off + 8)
+                off += FLAT_STRIDE_HEADER
+                off = alignWord(off + flatPayloadSize(parcel, off, lastUnion))
+            }
+            off = skipDriftedByteArray(parcel, off)
+            off = skipDriftedByteArray(parcel, off)
+            val modtime = parcel.getLong(alignWord(off))
+            val unknownUnion = lastUnion !in 0..14
+            modtime > HIGH_MODTIME ||
+                (modtime == SENTINEL_MODTIME &&
+                    (lastSec == 4L || lastSec == 256L) &&
+                    lastTag == 1L &&
+                    lastUnion == 32L &&
+                    unknownUnion)
+        }.getOrDefault(false)
+
+    private fun flatPayloadSize(parcel: ByteBuffer, off: Int, union: Long): Int =
+        when {
+            union in 1..11 -> 4
+            union == 12L || union == 13L -> 8
+            union == 14L -> alignWord(off + 4 + parcel.getInt(off)) - off
+            else -> 0
+        }
+
+    private fun skipDriftedByteArray(parcel: ByteBuffer, off: Int): Int {
+        if (parcel.getInt(off) == 0) return off + 4
+        val lengthPos = off + 4
+        return alignWord(lengthPos + 4 + parcel.getInt(lengthPos))
+    }
+
+    private fun u32(parcel: ByteBuffer, off: Int): Long = parcel.getInt(off).toLong() and 0xFFFFFFFFL
+
+    private fun alignWord(off: Int): Int = (off + 3) and 3.inv()
 }

@@ -27,7 +27,7 @@ add_executable(libsupervisor.so supervisor.cpp)
 target_link_libraries(libsupervisor.so PRIVATE log)
 
 add_library(${CMAKE_PROJECT_NAME} SHARED binder_interceptor.cpp)
+set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME "integrityfateh7")
 target_include_directories(${CMAKE_PROJECT_NAME} PUBLIC external/linux-kernel/include include)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE binder lsplt_static utils)
 
-set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME "integrityfateh7")

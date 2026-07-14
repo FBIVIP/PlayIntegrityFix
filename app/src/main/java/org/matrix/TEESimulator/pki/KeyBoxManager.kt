@@ -3,6 +3,7 @@ package org.matrix.TEESimulator.pki
 import android.security.keystore.KeyProperties
 import java.io.File
 import java.io.StringReader
+import java.security.cert.X509Certificate
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.RSAPrivateKey
 import java.util.concurrent.ConcurrentHashMap
@@ -53,10 +54,38 @@ object KeyBoxManager {
         // If it's not in the cache, the `getOrPut` block is executed to parse and store it.
         val keyMap =
             keyStoreCache.getOrPut(keyStoreFileName) { parseKeyStoreFile(keyStoreFileName) }
-        SystemLogger.verbose(
-            "Fetching attestation key in $keyStoreFileName with $algorithm algorithm."
-        )
-        return keyMap[algorithm]
+        val keyBox = keyMap[algorithm]
+        if (keyBox != null) {
+            // Surface attestation cert serials on every fetch so a revoked/leaked keybox is
+            // obvious from logcat alone -- Google's CRL and Duck's "mass abuse" check both match
+            // by certificate serial (lowercase hex). Logged here rather than at parse time because
+            // the parse is cached and would emit at most once per boot.
+            val serials =
+                keyBox.certificates.joinToString(", ") { cert ->
+                    (cert as? X509Certificate)?.serialNumber?.toString(16) ?: "?"
+                }
+            SystemLogger.info(
+                "Using $algorithm keybox $keyStoreFileName; attestation cert serials (hex): $serials"
+            )
+        }
+        return keyBox
+    }
+
+    /**
+     * Retrieves any usable attestation key from a key store file, preferring EC.
+     *
+     * EC is the modern device-attestation key type and validly signs a leaf carrying either an EC
+     * or an RSA subject key. This is the fail-safe used when no algorithm-matching key exists, so
+     * patching can still re-root the chain under the keybox instead of leaking the device's real
+     * attestation.
+     *
+     * @param keyStoreFileName The name of the XML file (e.g., "keybox.xml").
+     * @return The preferred [KeyBox], or `null` if the file contains no usable key.
+     */
+    fun getAnyAttestationKey(keyStoreFileName: String): KeyBox? {
+        val keyMap =
+            keyStoreCache.getOrPut(keyStoreFileName) { parseKeyStoreFile(keyStoreFileName) }
+        return keyMap[KeyProperties.KEY_ALGORITHM_EC] ?: keyMap.values.firstOrNull()
     }
 
     /**

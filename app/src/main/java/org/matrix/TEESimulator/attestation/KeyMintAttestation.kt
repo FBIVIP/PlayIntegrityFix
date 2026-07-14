@@ -58,6 +58,7 @@ data class KeyMintAttestation(
     val maxUsesPerBoot: Int?,
     val maxBootLevel: Int?,
     val minMacLength: Int?,
+    val macLength: Int? = null,
     val rsaOaepMgfDigest: List<Int>,
 ) {
     /** Secondary constructor that populates the fields by parsing an array of `KeyParameter`. */
@@ -134,6 +135,7 @@ data class KeyMintAttestation(
         maxUsesPerBoot = params.findInteger(Tag.MAX_USES_PER_BOOT),
         maxBootLevel = params.findInteger(Tag.MAX_BOOT_LEVEL),
         minMacLength = params.findInteger(Tag.MIN_MAC_LENGTH),
+        macLength = params.findInteger(Tag.MAC_LENGTH),
         rsaOaepMgfDigest = params.findAllDigests(Tag.RSA_OAEP_MGF_DIGEST),
     ) {
         // Log all parsed parameters for debugging purposes.
@@ -142,7 +144,8 @@ data class KeyMintAttestation(
 
     fun isAttestKey(): Boolean = purpose.size == 1 && purpose.contains(KeyPurpose.ATTEST_KEY)
 
-    fun isImportKey(): Boolean = origin == KeyOrigin.IMPORTED || origin == KeyOrigin.SECURELY_IMPORTED
+    fun isImportKey(): Boolean =
+        origin == KeyOrigin.IMPORTED || origin == KeyOrigin.SECURELY_IMPORTED
 }
 
 // --- Private helper extension functions for parsing KeyParameter arrays ---

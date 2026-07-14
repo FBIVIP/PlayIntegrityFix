@@ -28,8 +28,15 @@ class OperationInterceptor(
         val methodName = transactionNames[code] ?: "unknown code=$code"
         logTransaction(txId, methodName, callingUid, callingPid, true)
 
+        // Mirror SoftwareOperation's vendor gate: a real-key op must answer non-AEAD updateAad
+        // exactly as the forged-key path does. Samsung and Xiaomi-MTK TEEs accept it; rejecting
+        // here while the forged path accepts diverges the two and fingerprints the injection.
         if (code == UPDATE_AAD_TRANSACTION && !isAead) {
-            return InterceptorUtils.createServiceSpecificErrorReply(KeystoreErrorCodes.invalidTag)
+            return if (VendorQuirks.nonAeadUpdateAadSucceeds()) {
+                InterceptorUtils.createSuccessReply(writeResultCode = false)
+            } else {
+                InterceptorUtils.createServiceSpecificErrorReply(KeystoreErrorCodes.invalidTag)
+            }
         }
 
         if (code == FINISH_TRANSACTION || code == ABORT_TRANSACTION) {

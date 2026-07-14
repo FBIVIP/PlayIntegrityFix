@@ -1,8 +1,7 @@
 id=integrityfateh7
-name=integrityfateh7
-version=v42
-versionCode=420
-author=fateh7_𝑹𝒐𝒐𝒕 𝑷𝒉𝒂𝒏𝒕𝒐𝒎 𝑭𝑨𝑻𝑬𝑯
-description=Platinum Pro Edition by Fateh7 ❤️ | A premium Play Integrity engine for max performance, advanced protection & seamless Android compatibility. ⚡ Performance • 🔒 Security • 🎯 Stability • 📱 Compatibility | 📢 Telegram: t.me/keybox_xml | 📞 WhatsApp: +213776717301
-banner=https://raw.githubusercontent.com/FBIVIP/Play-IntegrityFix/main/fateh.png
-updateJson=https://fbivip.github.io/Play-IntegrityFix/update.json
+name=TEESimulator-RS
+version=${REPLACEMEVER}
+versionCode=${REPLACEMEVERCODE}
+author=JingMatrix, Enginex0
+description=Software simulation for Android hardware-backed key pairs with key attestation
+updateJson=https://raw.githubusercontent.com/Enginex0/TEESimulator-RS/main/module/update.json

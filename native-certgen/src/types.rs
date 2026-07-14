@@ -93,6 +93,11 @@ pub struct CertGenParams {
     pub caller_nonce: bool,
     pub unlocked_device_required: bool,
     pub no_auth_required: bool,
+
+    /// Calling app UID, used only to key diagnostic log lines to the requesting app.
+    pub uid: i32,
+    /// Mirrors the APK debug variant; gates the produced-extension dump so release stays quiet.
+    pub debug_logging: bool,
 }
 
 pub struct GeneratedKeyPair {

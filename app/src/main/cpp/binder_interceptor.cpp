@@ -403,7 +403,10 @@ void inspectAndRewriteTransaction(binder_transaction_data *txn_data) {
         uint64_t tx_id = ++g_transaction_id_counter;
         info.transaction_id = tx_id;
 
-        LOGV("[Hook] Hijacking Transaction %" PRIu64 " (Code: %u)", tx_id, txn_data->code);
+        // tx_id is the same counter handed to the Kotlin interceptor, and sender_euid is the
+        // calling app; together they correlate this native hijack with that UID's per-UID file.
+        LOGV("[Hook] Hijacking Transaction %" PRIu64 " (Code: %u, uid=%u)", tx_id, txn_data->code,
+             txn_data->sender_euid);
 
         // Rewrite the destination to our Stub
         txn_data->target.ptr = reinterpret_cast<uintptr_t>(g_stub_instance->getWeakRefs());

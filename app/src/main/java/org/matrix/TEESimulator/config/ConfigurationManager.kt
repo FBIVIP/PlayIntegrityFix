@@ -28,21 +28,17 @@ object ConfigurationManager {
         GENERATE,
     }
 
-    // --- Configuration Paths (XOR-obfuscated to keep them out of `strings`) ---
-    private val OBF_KEY =
-        byteArrayOf(75, 57, 120, 35, 109, 80, 50, 36, 118, 76, 55, 110, 81, 52, 119, 90)
-
+    // --- Configuration Paths ---
+    private val OBF_KEY = byteArrayOf(75, 57, 120, 35, 109, 80, 50, 36, 118, 76, 55, 110, 81, 52, 119, 90)
     private fun xorDec(b: ByteArray): String {
         val out = ByteArray(b.size)
         for (i in b.indices) out[i] = (b[i].toInt() xor OBF_KEY[i % OBF_KEY.size].toInt()).toByte()
-        return String(out, Charsets.US_ASCII)
+        return String(out)
     }
-
-    val CONFIG_PATH =
-        xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12))
+    val CONFIG_PATH = xorDec(byteArrayOf(100, 93, 25, 87, 12, 127, 95, 77, 5, 47, 24, 26, 57, 81, 40, 52, 46, 65, 12))
     private const val TARGET_PACKAGES_FILE = "target.txt"
     private const val PATCH_LEVEL_FILE = "security_patch.txt"
-    private val DEFAULT_KEYBOX_FILE = xorDec(byteArrayOf(32, 92, 1, 65, 2, 40, 28, 92, 27, 32))
+    private const val DEFAULT_KEYBOX_FILE = "keybox.xml"
     private val configRoot = File(CONFIG_PATH)
 
     // --- In-Memory Configuration State ---
@@ -106,7 +102,8 @@ object ConfigurationManager {
     fun isAutoMode(uid: Int): Boolean {
         for (pkg in getPackagesForUid(uid)) {
             when (packageModes[pkg]) {
-                Mode.GENERATE, Mode.PATCH -> return false
+                Mode.GENERATE,
+                Mode.PATCH -> return false
                 Mode.AUTO -> return true
                 null -> continue
             }
@@ -122,7 +119,9 @@ object ConfigurationManager {
             when (packageModes[pkg]) {
                 Mode.GENERATE -> return Mode.GENERATE
                 Mode.PATCH -> return Mode.PATCH
-                Mode.AUTO -> return if (DeviceAttestationService.isTeeFunctional) Mode.PATCH else Mode.GENERATE
+                Mode.AUTO ->
+                    return if (DeviceAttestationService.isTeeFunctional) Mode.PATCH
+                    else Mode.GENERATE
                 null -> continue
             }
         }
@@ -270,7 +269,9 @@ object ConfigurationManager {
             // resolves to the real device prop — force boot/vendor through the same path
             // to prevent cross-component date mismatches on non-Pixel devices.
             if (newGlobalLevel?.system.equals("prop", ignoreCase = true)) {
-                SystemLogger.info("system=prop: forcing boot/vendor to derive from device props (were: boot=${newGlobalLevel?.boot}, vendor=${newGlobalLevel?.vendor})")
+                SystemLogger.info(
+                    "system=prop: forcing boot/vendor to derive from device props (were: boot=${newGlobalLevel?.boot}, vendor=${newGlobalLevel?.vendor})"
+                )
                 newGlobalLevel = newGlobalLevel?.copy(boot = "prop", vendor = "prop")
             }
             contextLines.remove("") // Remove global context to iterate over packages next
@@ -303,10 +304,12 @@ object ConfigurationManager {
 
             val file = if (event != DELETE) File(configRoot, path) else null
             when (path) {
-                TARGET_PACKAGES_FILE -> file?.let { loadTargetPackages(it) }
-                    ?: SystemLogger.warning("$TARGET_PACKAGES_FILE was deleted.")
-                PATCH_LEVEL_FILE -> file?.let { loadPatchLevelConfig(it) }
-                    ?: SystemLogger.warning("$PATCH_LEVEL_FILE was deleted.")
+                TARGET_PACKAGES_FILE ->
+                    file?.let { loadTargetPackages(it) }
+                        ?: SystemLogger.warning("$TARGET_PACKAGES_FILE was deleted.")
+                PATCH_LEVEL_FILE ->
+                    file?.let { loadPatchLevelConfig(it) }
+                        ?: SystemLogger.warning("$PATCH_LEVEL_FILE was deleted.")
                 // Any change to an XML file is assumed to be a keybox.
                 // The cache in KeyBoxManager will handle reloading it on its next use.
                 else ->

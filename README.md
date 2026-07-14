@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">TEESimulator-RS</h1>
-  <p align="center"><b>Full TEE Emulation for Rooted Android</b></p>
+  <p align="center"><b>Pass hardware security checks on a rooted Android phone</b></p>
   <p align="center">
     <a href="https://github.com/Enginex0/TEESimulator-RS/actions/workflows/build.yml"><img src="https://github.com/Enginex0/TEESimulator-RS/actions/workflows/build.yml/badge.svg" alt="Build"></a>
     <img src="https://img.shields.io/badge/Android-10%2B-green?logo=android" alt="Android 10+">
@@ -11,58 +11,78 @@
 ---
 
 > [!NOTE]
-> Fork of [JingMatrix/TEESimulator](https://github.com/JingMatrix/TEESimulator) with native Rust certificate generation, key persistence, and AOSP-compliant attestation behavior. For the upstream project, see the original repo.
+> This is a fork of [JingMatrix/TEESimulator](https://github.com/JingMatrix/TEESimulator). It adds certificate generation written in Rust, generated keys that survive reboots, and attestation behavior that matches stock Android. See the upstream repo for the original project.
 
-## What It Does
+## What it does
 
-TEESimulator intercepts Binder IPC at the `ioctl` level inside the `keystore2` process and generates entire certificate chains from scratch, signed by your keybox, with correct attestation extensions. Apps that verify hardware attestation see a legitimate device.
+Some Android apps refuse to run on a rooted phone. They ask the phone to prove it still has a genuine security chip, a check called hardware attestation. A rooted phone normally fails that check.
 
-This is not TrickyStore. TEESimulator replaces TrickyStore and its forks entirely. It shares the same config paths for drop-in compatibility, but the internals are different: native Rust cert generation, binder-level interception via `lsplt`, per-UID rate limiting, key persistence, and AOSP-spec attestation behavior.
+TEESimulator makes it pass. Android runs a system process named `keystore2` that answers these proof requests. TEESimulator sits in front of `keystore2`, watches for the requests apps make to create keys and read their certificates, and builds the proof itself: a full chain of certificates signed by your `keybox.xml`. To the app, the phone looks genuine.
+
+It replaces TrickyStore and its forks completely. It reads config from the same files, so you can switch without moving anything, but the internals are rewritten: certificates are generated in Rust, keys are saved across reboots, and each app gets its own limit on how fast it can request hardware-backed keys.
 
 ## Requirements
 
 > [!IMPORTANT]
-> A valid `keybox.xml` is required for hardware-level attestation. Without one, the module generates software-level certificates that won't pass strict hardware checks.
+> You need a valid `keybox.xml`. This is the file used to sign the proof. Without it, TEESimulator can only produce software-only certificates, which strict apps reject.
 
-1. Android 10+
-2. Root manager: KernelSU, Magisk, or APatch
-3. `keybox.xml` at `/data/misc/the_next/keybox.xml`
+1. Android 10 or newer
+2. A root manager: KernelSU, Magisk, or APatch
+3. A `keybox.xml` file at `/data/misc/the_next/keybox.xml`
 
-## Quick Start
+## Quick start
 
-1. Download the latest ZIP from [Releases](https://github.com/Enginex0/TEESimulator-RS/releases)
-2. Install via your root manager and reboot
-3. Place your keybox at `/data/misc/the_next/keybox.xml`
-4. Configure targets in `/data/misc/the_next/target.txt`
-5. Verify with Play Integrity or Key Attestation Demo
+1. Download the latest ZIP from [Releases](https://github.com/Enginex0/TEESimulator-RS/releases).
+2. Install it with your root manager, then reboot.
+3. Put your `keybox.xml` at `/data/misc/the_next/keybox.xml`.
+4. List the apps you want to cover in `/data/misc/the_next/target.txt`.
+5. Check that it works with Play Integrity or the Key Attestation Demo app.
 
-## Architecture
+## How it works
 
-**Native Cert Generation** — `libcertgen.so` generates X.509 chains in Rust using `ring` and manual DER encoding. BouncyCastle fallback for unsupported curves (P-224, P-521, Curve25519).
+```
+   App
+    |  asks the phone to prove it has real security hardware
+    v
++----------------------------------------------------+
+| keystore2  (the Android process that answers)      |
+|                                                    |
+|   ioctl  <- TEESimulator hooks the call here       |
+|     |                                              |
+|     v                                              |
+|   builds a certificate chain and signs it          |
+|   with your keybox.xml                             |
++----------------------------------------------------+
+    |  the signed chain goes back to the app
+    v
+   App  ->  sees a genuine, hardware-backed device
+```
 
-**Binder Interception** — PLT hook on `ioctl()` in `libc.so` via `lsplt` inside `keystore2`. Intercepts `generateKey`, `importKey`, and `getKeyEntry` transactions.
+**Certificate generation in Rust.** A native library, `libcertgen.so`, builds the X.509 certificate chains in Rust with the `ring` crypto library, encoding the bytes by hand in DER, the standard certificate format. Three key types fall outside `ring`'s support (the P-224, P-521, and Curve25519 curves); for those it falls back to Java's BouncyCastle.
 
-**AOSP Compliance** — Self-signed certs for non-attested keys (matching `ta/src/keys.rs`), correct AuthorizationList tag ordering, version-guarded extension fields, `authorize_create` enforcement.
+**Hooking keystore2.** Inside the `keystore2` process, TEESimulator redirects `ioctl`, the low-level system call Android uses to pass messages between processes. It does this with `lsplt`, a hooking library. From there it can read and answer three kinds of request: creating a key, importing a key, and fetching a key's certificate.
 
-**Key Persistence** — Generated keys survive reboots. File-backed with file-level locking.
+**Matching stock Android.** The output matches what a real device produces. Keys that are not attested get self-signed certificates. The fields inside the attestation record keep the same order. Fields that only exist on certain Android versions appear only on those versions. The same usage checks run before a key is used.
 
-**Rate Limiting** — Per-UID hardware keygen cap (2/30s window, 2 concurrent). Overflow falls to software certs.
+**Keys that survive reboots.** Generated keys are written to disk and stay valid after a restart. File locking stops two writers from corrupting the store.
+
+**Per-app rate limit.** Each app may request at most 2 hardware-backed keys per 30 seconds, and only 2 at a time. Past that, it receives a software-only certificate.
 
 ## Configuration
 
-All config files live at `/data/misc/the_next/` and are hot-reloaded via `FileObserver`.
+All config files live in `/data/misc/the_next/`. TEESimulator reloads them the moment you save, so a reboot is not needed.
 
 ### target.txt
 
-Controls which apps get intercepted and the simulation mode.
+Lists the apps TEESimulator handles, one package name per line. A suffix sets how each app is handled.
 
-| Suffix | Mode |
-|--------|------|
-| `!` | Force software key generation |
-| `?` | Force leaf certificate patching (real TEE key, patched cert) |
-| *(none)* | Automatic selection |
+| Suffix | What it does |
+|--------|--------------|
+| `!` | Always make a software key |
+| `?` | Keep the real hardware key, patch only its certificate |
+| none | Decide automatically |
 
-Multi-keybox support via `[filename.xml]` headers:
+To use more than one keybox, add a `[filename.xml]` header above the apps that should use that file:
 
 ```
 com.google.android.gms!
@@ -74,16 +94,16 @@ com.google.android.gsf
 
 ### security_patch.txt
 
-Override patch levels reported in attestation certificates. Global defaults at top, per-package overrides with `[package.name]`.
+Sets the security patch dates reported in the attestation certificates. Global defaults go at the top. Override them for one app with a `[package.name]` header.
 
-| Key | Scope |
-|-----|-------|
+| Key | What it sets |
+|-----|--------------|
 | `system` | OS patch level |
 | `vendor` | Vendor patch level |
-| `boot` | Boot/kernel patch level |
-| `all` | Sets all three |
+| `boot` | Boot and kernel patch level |
+| `all` | All three at once |
 
-Special values: `today`, `YYYY-MM-DD` templates, `no` (omit tag), `device_default`, `prop` (read from system property).
+Accepted values: `today`, a `YYYY-MM-DD` template, `no` to omit the field, `device_default`, or `prop` to read the value from a system property.
 
 ```
 system=YYYY-MM-05
@@ -94,9 +114,15 @@ boot=no
 system=2025-10-01
 ```
 
-## Building from Source
+### boot_props_mode
 
-Prerequisites: JDK 21, Android SDK/NDK 27, Rust stable with `aarch64-linux-android` target, `cargo-ndk`.
+Controls global `ro.boot.*` property spoofing. Values: `auto` (default), `force`, or `disable`.
+
+In `auto`, Oplus-family devices (OnePlus/OPPO/realme/Oplus) skip boot-state prop spoofing to avoid conflicts with vendor TEE services such as ultrasonic fingerprint calibration. Create `/data/misc/the_next/boot_props_mode` with `force` to restore the old behavior, or `disable` to turn it off on any device.
+
+## Building from source
+
+You need JDK 21, the Android SDK and NDK 29, Rust (stable) with the `aarch64-linux-android` target, and `cargo-ndk`.
 
 ```bash
 git clone --recursive https://github.com/Enginex0/TEESimulator-RS.git
@@ -104,15 +130,13 @@ cd TEESimulator-RS
 ./gradlew zipRelease zipDebug
 ```
 
-Output ZIPs in `out/`. Gradle invokes `cargo ndk` automatically to cross-compile `libcertgen.so`.
-
-Push to `main` or use **Actions > Build > Run workflow** to trigger CI.
+The ZIPs land in `out/`. Gradle runs `cargo ndk` for you to cross-compile `libcertgen.so`. To build on CI instead, push to `main` or run Actions > Build > Run workflow.
 
 ## Compatibility
 
-| Root Manager | Status |
+| Root manager | Status |
 |---|---|
-| KernelSU | Tested (Action button + lifecycle scripts) |
+| KernelSU | Tested, including the Action button and lifecycle scripts |
 | Magisk | Supported |
 | APatch | Supported |
 
@@ -126,13 +150,10 @@ Push to `main` or use **Actions > Build > Run workflow** to trigger CI.
 
 ## Credits
 
-- [JingMatrix](https://github.com/JingMatrix/TEESimulator) — original TEESimulator and interception architecture
-- [5ec1cff](https://github.com/5ec1cff/TrickyStore) — TrickyStore, the project that pioneered keystore interception
-- [LSPlt](https://github.com/LSPosed/LSPlt) — PLT hook library
-- [ring](https://github.com/briansmith/ring) — Rust cryptography library
-- [MhmRdd](https://github.com/MhmRdd) — AOSP compliance work via upstream [PR #157](https://github.com/JingMatrix/TEESimulator/pull/157)
-- [fatalcoder524](https://github.com/fatalcoder524) — contributor and collaborator
-- [huguangares](https://github.com/huguangares) — collaborator and tester
+- [JingMatrix](https://github.com/JingMatrix/TEESimulator) for the original TEESimulator and its interception design
+- [ring](https://github.com/briansmith/ring) for the Rust cryptography
+- [fatalcoder524](https://github.com/fatalcoder524) for contributions and collaboration
+- [huguangares](https://github.com/huguangares) for collaboration and testing
 
 ## License
 

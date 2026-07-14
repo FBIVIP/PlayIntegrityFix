@@ -4,17 +4,6 @@ CONFIG_DIR=/data/misc/the_next
 
 . "$MODDIR/action_i18n.sh"
 
-echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ⚠️  $(_msg confirm_header)"
-echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " "
-echo "  $(_msg confirm_warning_1)"
-echo "  $(_msg confirm_warning_2)"
-echo " "
-echo "  🔊  $(_msg confirm_vol_up)"
-echo "  🔉  $(_msg confirm_vol_down)"
-echo " "
-
 confirm() {
     # Sample getevent in 1s bursts; a piped stream block-buffers and misses
     # a single key-press before the timeout.
@@ -28,6 +17,31 @@ confirm() {
     done
     return 1
 }
+
+# Debug builds ship diag.sh, adding a one-tap log export before the destructive clear-keys action.
+if [ -f "$MODDIR/diag.sh" ]; then
+    . "$MODDIR/diag.sh"
+    echo " "
+    echo "  📦 Export diagnostic logs to /sdcard/Download?"
+    echo "  🔊  Vol-Up = export logs"
+    echo "  🔉  Vol-Down = skip to clear keys"
+    echo " "
+    if confirm; then
+        diag_export
+        exit 0
+    fi
+fi
+
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  ⚠️  $(_msg confirm_header)"
+echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo " "
+echo "  $(_msg confirm_warning_1)"
+echo "  $(_msg confirm_warning_2)"
+echo " "
+echo "  🔊  $(_msg confirm_vol_up)"
+echo "  🔉  $(_msg confirm_vol_down)"
+echo " "
 
 if ! confirm; then
     echo " "

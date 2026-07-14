@@ -7,10 +7,9 @@ pub mod keybox;
 pub mod attestation;
 pub mod certbuilder;
 pub mod logging;
-mod obf;
 
 use jni::objects::{JByteArray, JClass, JIntArray, JObject, JString};
-use jni::sys::{jboolean, jbyteArray, jstring};
+use jni::sys::{jboolean, jbyteArray};
 use jni::JNIEnv;
 
 use crate::error::{CertGenError, Result};
@@ -65,16 +64,39 @@ fn generate_attested_inner(env: &mut JNIEnv, config: &JObject) -> Result<jbyteAr
 
     let cert_chain = if params.attestation_challenge.is_some() {
         let attest_ext = attestation::build_attestation_extension(&params)?;
+        // Ground truth of what the Rust forger emitted, keyed to the app. Gated on the APK debug
+        // variant so release builds never dump the extension.
+        if params.debug_logging {
+            tracing::info!(
+                uid = params.uid,
+                ext_hex = %hex_encode(&attest_ext),
+                "produced attestation extension"
+            );
+        }
         certbuilder::build_certificate_chain(&key_pair, Some(&attest_ext), &keybox, &params)?
     } else {
-        tracing::info!("no attestation challenge, generating self-signed cert (depth 1)");
+        tracing::info!(
+            uid = params.uid,
+            "no attestation challenge, generating self-signed cert (depth 1)"
+        );
         certbuilder::build_self_signed_cert(&key_pair, &params)?
     };
 
     let blob = assemble_result(&key_pair.private_key_pkcs8, &cert_chain);
+    tracing::info!(uid = params.uid, certs = cert_chain.len(), "assembled native cert result");
 
     let out = env.byte_array_from_slice(&blob)?;
     Ok(out.into_raw())
+}
+
+/// Lowercase hex of a byte slice for diagnostic dumps; the crate has no `hex` dependency.
+fn hex_encode(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(out, "{:02x}", b);
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
@@ -116,44 +138,6 @@ fn init_logging_inner(env: &mut JNIEnv, verbose: jboolean, log_dir: &JString) ->
     logging::init(verbose != 0, &dir, 2, 3)
         .map_err(|e| CertGenError::Jni(format!("logging init failed: {e}")))?;
     Ok(())
-}
-
-// ---------------------------------------------------------------------------
-// JNI entry: dumpLogs
-// ---------------------------------------------------------------------------
-
-#[no_mangle]
-pub extern "system" fn Java_org_matrix_TEESimulator_pki_NativeCertGen_dumpLogs(
-    mut env: JNIEnv,
-    _class: JClass,
-) -> jstring {
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        dump_logs_inner(&mut env)
-    }));
-
-    match result {
-        Ok(Ok(raw)) => raw,
-        Ok(Err(e)) => {
-            tracing::error!(%e, "dumpLogs failed");
-            std::ptr::null_mut()
-        }
-        Err(_) => {
-            tracing::error!("dumpLogs panicked");
-            std::ptr::null_mut()
-        }
-    }
-}
-
-fn dump_logs_inner(env: &mut JNIEnv) -> Result<jstring> {
-    logging::dump::execute_dump()
-        .map_err(|e| CertGenError::Jni(format!("dump failed: {e}")))?;
-
-    // Read the dump path written by execute_dump
-    let path = std::fs::read_to_string(format!("{}/.dump_path", crate::obf::base()))
-        .map_err(|e| CertGenError::Jni(format!("read dump path: {e}")))?;
-
-    let jpath = env.new_string(&path)?;
-    Ok(jpath.into_raw())
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +190,8 @@ fn extract_config(env: &mut JNIEnv, config: &JObject) -> Result<CertGenParams> {
     let caller_nonce = get_boolean(env, config, "callerNonce")?;
     let unlocked_device_required = get_boolean(env, config, "unlockedDeviceRequired")?;
     let no_auth_required = get_boolean(env, config, "noAuthRequired")?;
+    let uid = get_int(env, config, "uid")?;
+    let debug_logging = get_boolean(env, config, "debugLogging")?;
 
     Ok(CertGenParams {
         algorithm: Algorithm::try_from(algorithm)?,
@@ -253,6 +239,8 @@ fn extract_config(env: &mut JNIEnv, config: &JObject) -> Result<CertGenParams> {
         caller_nonce,
         unlocked_device_required,
         no_auth_required,
+        uid,
+        debug_logging,
     })
 }
 
