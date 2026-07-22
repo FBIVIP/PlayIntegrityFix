@@ -65,7 +65,7 @@ object App {
 
             // Mount the SOTER forge on the on-demand soterserver process. The supervisor
             // binds and (re)injects on its own thread, returning at once so it never blocks the loop.
-            SoterProcessSupervisor.start(systemContext)
+            // SoterProcessSupervisor.start(systemContext)
 
             // This starts the message queue processing. It blocks here indefinitely
             // processing messages until Looper.myLooper().quit() is called.
