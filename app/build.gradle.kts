@@ -199,7 +199,7 @@ androidComponents {
                     into("lib")
                     include(
                         "**/libinject.so",
-                        "**/libintegrityfateh7.so",
+                        "**/libTEESimulator.so",
                         "**/libsupervisor.so",
                         "**/libcertgen.so",
                     )

@@ -13,7 +13,6 @@ import org.matrix.TEESimulator.config.ConfigurationManager
 import org.matrix.TEESimulator.interception.keystore.AbstractKeystoreInterceptor
 import org.matrix.TEESimulator.interception.keystore.Keystore2Interceptor
 import org.matrix.TEESimulator.interception.keystore.KeystoreInterceptor
-import org.matrix.TEESimulator.interception.soter.SoterProcessSupervisor
 import org.matrix.TEESimulator.logging.SystemLogger
 import org.matrix.TEESimulator.pki.NativeCertGen
 import org.matrix.TEESimulator.util.AndroidDeviceUtils
@@ -62,10 +61,6 @@ object App {
             Security.addProvider(BouncyCastleProvider())
 
             NativeCertGen.initialize("/data/adb/modules/integrityfateh7/libcertgen.so")
-
-            // Mount the SOTER forge on the on-demand soterserver process. The supervisor
-            // binds and (re)injects on its own thread, returning at once so it never blocks the loop.
-            // SoterProcessSupervisor.start(systemContext)
 
             // This starts the message queue processing. It blocks here indefinitely
             // processing messages until Looper.myLooper().quit() is called.
