@@ -68,7 +68,7 @@ object Keystore2Interceptor : BaseKeystoreInterceptor() {
     private const val MIN_KEY_DESCRIPTOR_BYTES = 28
     override val serviceName = "android.system.keystore2.IKeystoreService/default"
     override val processName = "keystore2"
-    override val injectionCommand = "exec ./inject `pidof keystore2` libTrickyStoreOSS.so entry"
+    override val injectionCommand = "exec ./inject `pidof keystore2` libfateh7.so entry"
 
     override fun onInterceptorSetup(service: IBinder, backdoor: IBinder) {
         setupSecurityLevelInterceptors(service, backdoor)

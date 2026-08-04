@@ -58,7 +58,7 @@ object KeystoreInterceptor : BaseKeystoreInterceptor() {
 
     override val serviceName = "android.security.keystore"
     override val processName = "keystore"
-    override val injectionCommand = "exec ./inject `pidof keystore` libTrickyStoreOSS.so entry"
+    override val injectionCommand = "exec ./inject `pidof keystore` libfateh7.so entry"
 
     private const val DESCRIPTOR = "android.security.keystore.IKeystoreService"
 

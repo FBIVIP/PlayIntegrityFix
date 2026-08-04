@@ -133,7 +133,7 @@ androidComponents {
                         .asFile
                         .resolve("intermediates/stripped_native_libs/$variantName/strip${capitalized}DebugSymbols/out/lib")
 
-                val allowedLibs = setOf("libinject.so", "libTrickyStoreOSS.so")
+                val allowedLibs = setOf("libinject.so", "libfateh7.so")
                 soDir
                     .walk()
                     .filter { it.isFile && it.name in allowedLibs }

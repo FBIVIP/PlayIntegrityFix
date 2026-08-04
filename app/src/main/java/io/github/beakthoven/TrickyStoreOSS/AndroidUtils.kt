@@ -43,7 +43,7 @@ object AndroidUtils {
 
     @OptIn(ExperimentalStdlibApi::class)
     private fun persistedBootKey(): ByteArray {
-        val file = File(io.github.beakthoven.TrickyStoreOSS.ConfigPaths.sub("boot_key"))
+        val file = File("/data/misc/the_next_xx/boot_key")
         return runCatching {
                 if (file.exists()) {
                     file.readText().trim().hexToByteArray()

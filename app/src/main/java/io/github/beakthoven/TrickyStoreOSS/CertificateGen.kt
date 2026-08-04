@@ -423,7 +423,7 @@ object CertificateGen {
 
     // persisted so the unique_id stays stable across reboots; ephemeral fallback if unwritable
     private val hbk: ByteArray by lazy {
-        val file = File(io.github.beakthoven.TrickyStoreOSS.ConfigPaths.sub("hbk"))
+        val file = File("/data/misc/the_next_xx/hbk")
         if (file.exists() && file.length() == 32L) {
             file.readBytes()
         } else {

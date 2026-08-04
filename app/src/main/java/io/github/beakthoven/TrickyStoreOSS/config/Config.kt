@@ -59,7 +59,7 @@ object PkgConfig {
         raw.onFailure { Log.e(TAG, "failed to update keybox", it) }
     }
 
-    private val CONFIG_PATH = io.github.beakthoven.TrickyStoreOSS.ConfigPaths.base
+    private const val CONFIG_PATH = "/data/misc/the_next_xx"
     private const val TARGET_FILE = "target.txt"
     private const val KEYBOX_FILE = "keybox.xml"
     private const val TEE_STATUS_FILE = "tee_status"

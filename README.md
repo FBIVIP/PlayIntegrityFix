@@ -34,9 +34,9 @@ Licensed under **GPLv3** and it stays that way.
 ## Installation
 
 1. Flash the module and reboot
-2. *(Optional)* Place an unrevoked hardware keybox at `/data/adb/tricky_store/keybox.xml` for extended integrity
-3. *(Optional)* Customize target packages in `/data/adb/tricky_store/target.txt`
-4. *(Optional)* Customize the security patch level in `/data/adb/tricky_store/security_patch.txt`
+2. *(Optional)* Place an unrevoked hardware keybox at `/data/misc/the_next_xx/keybox.xml` for extended integrity
+3. *(Optional)* Customize target packages in `/data/misc/the_next_xx/target.txt`
+4. *(Optional)* Customize the security patch level in `/data/misc/the_next_xx/security_patch.txt`
 
 All config files take effect immediately — no reboot needed after step 1.
 
@@ -92,7 +92,7 @@ com.google.android.gms!             # certificate generation
 
 ### `security_patch.txt`
 
-Optional. Lives at `/data/adb/tricky_store/security_patch.txt`. It sets the three patch levels a spoofed attestation reports: `osPatchLevel` (system), `vendorPatchLevel`, and `bootPatchLevel`. It only changes KeyAttestation output, not system properties. Changes apply on save, so no reboot is needed.
+Optional. Lives at `/data/misc/the_next_xx/security_patch.txt`. It sets the three patch levels a spoofed attestation reports: `osPatchLevel` (system), `vendorPatchLevel`, and `bootPatchLevel`. It only changes KeyAttestation output, not system properties. Changes apply on save, so no reboot is needed.
 
 Lines starting with `#` are comments, and blank lines are ignored.
 

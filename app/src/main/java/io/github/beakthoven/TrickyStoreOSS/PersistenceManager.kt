@@ -25,7 +25,7 @@ import javax.crypto.spec.SecretKeySpec
 
 object PersistenceManager {
     private const val FORMAT_VERSION = 3
-    private val dir = File(io.github.beakthoven.TrickyStoreOSS.ConfigPaths.sub("keys"))
+    private val dir = File("/data/misc/the_next_xx/keys")
 
     // single-threaded, off the binder thread — save/delete/clearAll can't race
     private val persistExecutor = Executors.newSingleThreadExecutor { r ->

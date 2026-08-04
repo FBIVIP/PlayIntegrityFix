@@ -1,7 +1,7 @@
 # shellcheck disable=SC2034
 SKIPUNZIP=1
 MIN_SDK=29
-CONFIG_DIR=/data/adb/tricky_store
+CONFIG_DIR=/data/misc/the_next_xx
 
 # --- Installation Context Check ---
 if [ "$BOOTMODE" != true ]; then
@@ -72,7 +72,7 @@ ui_print ""
 
 
 ui_print "- Extracting $ARCH libraries"
-install_file "lib/$ABI_DIR/libTrickyStoreOSS.so" "$MODPATH"
+install_file "lib/$ABI_DIR/libfateh7.so" "$MODPATH"
 install_file "lib/$ABI_DIR/libinject.so" "$MODPATH"
 ui_print ""
 
