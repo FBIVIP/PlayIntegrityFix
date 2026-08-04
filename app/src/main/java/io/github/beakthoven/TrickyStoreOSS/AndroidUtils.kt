@@ -222,10 +222,14 @@ object AndroidUtils {
         )
 
     val attestVersion: Int
-        get() = CachedAttestData?.attestVersion ?: attestVersionMap[Build.VERSION.SDK_INT] ?: 500
+        get() = CachedAttestData?.attestVersion
+            ?: VintfKeyMint.version?.attestationVersion
+            ?: attestVersionMap[Build.VERSION.SDK_INT] ?: 500
 
     val keymasterVersion: Int
-        get() = CachedAttestData?.keymasterVersion ?: if (attestVersion == 4) 41 else attestVersion
+        get() = CachedAttestData?.keymasterVersion
+            ?: VintfKeyMint.version?.keymasterVersion
+            ?: if (attestVersion == 4) 41 else attestVersion
 
     fun String.convertPatchLevel(isLong: Boolean): Int {
         val raw = runCatching {

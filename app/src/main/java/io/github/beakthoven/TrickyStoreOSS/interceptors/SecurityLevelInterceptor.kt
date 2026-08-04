@@ -6,6 +6,7 @@
 package io.github.beakthoven.TrickyStoreOSS.interceptors
 
 import android.hardware.security.keymint.Algorithm
+import io.github.beakthoven.TrickyStoreOSS.TeeLatencySimulator
 import android.hardware.security.keymint.KeyParameter
 import android.hardware.security.keymint.KeyParameterValue
 import android.hardware.security.keymint.KeyPurpose
@@ -180,6 +181,7 @@ class SecurityLevelInterceptor(private val original: IKeystoreSecurityLevel, pri
         }
         if (code == generateKeyTransaction) {
             Log.i(TAG, "intercept key gen uid=$callingUid pid=$callingPid")
+            val genStartNanos = System.nanoTime()
             val raw = runCatching {
                 data.enforceInterface(IKeystoreSecurityLevel.DESCRIPTOR)
                 val keyDescriptor = data.readTypedObject(KeyDescriptor.CREATOR) ?: return@runCatching
@@ -227,7 +229,7 @@ class SecurityLevelInterceptor(private val original: IKeystoreSecurityLevel, pri
                         val isSymmetric = kgp.algorithm == Algorithm.AES || kgp.algorithm == Algorithm.HMAC
                         if (isSymmetric) {
                             val secretKey = CertificateGen.generateSecretKey(kgp) ?: return@runCatching
-                            return storeGeneratedKey(callingUid, keyDescriptor, kgp, null, secretKey, null, false)
+                            return storeGeneratedKey(callingUid, keyDescriptor, kgp, null, secretKey, null, false, genStartNanos)
                         }
                         val pair =
                             CertificateGen.generateKeyPair(
@@ -245,6 +247,7 @@ class SecurityLevelInterceptor(private val original: IKeystoreSecurityLevel, pri
                             null,
                             pair.second,
                             PkgConfig.needHack(callingUid),
+                            genStartNanos,
                         )
                     }
                     PkgConfig.needHack(callingUid) -> {
@@ -370,6 +373,7 @@ class SecurityLevelInterceptor(private val original: IKeystoreSecurityLevel, pri
         secretKey: javax.crypto.SecretKey?,
         chain: List<Certificate>?,
         skipLeafHack: Boolean,
+        genStartNanos: Long = 0L,
     ): Result {
         keyDescriptor.nspace = secureRandom.nextLong()
         val key = Key(callingUid, keyDescriptor.alias)
@@ -393,6 +397,9 @@ class SecurityLevelInterceptor(private val original: IKeystoreSecurityLevel, pri
                 marshalKeyMetadata(response.metadata),
                 kgp,
             )
+        }
+        if (genStartNanos != 0L) {
+            TeeLatencySimulator.simulateGenerateKeyDelay(kgp.algorithm, System.nanoTime() - genStartNanos)
         }
         return typedReply(response.metadata)
     }

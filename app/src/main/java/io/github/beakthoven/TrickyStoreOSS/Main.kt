@@ -10,6 +10,7 @@ import android.util.Log
 import io.github.beakthoven.TrickyStoreOSS.config.PkgConfig
 import io.github.beakthoven.TrickyStoreOSS.interceptors.Keystore2Interceptor
 import io.github.beakthoven.TrickyStoreOSS.interceptors.KeystoreInterceptor
+import io.github.beakthoven.TrickyStoreOSS.interceptors.SoterSupervisor
 import io.github.beakthoven.TrickyStoreOSS.logging.TAG
 import java.security.Security
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -24,6 +25,7 @@ fun main(args: Array<String>) {
     try {
         AndroidUtils.setupBootHash()
         initializeInterceptors()
+        startSoterSupervisor()
         maintainService()
     } catch (e: Exception) {
         Log.e(TAG, "Fatal error in main", e)
@@ -54,6 +56,19 @@ private fun selectKeystoreInterceptor() =
             Keystore2Interceptor
         }
     }
+
+private fun startSoterSupervisor() {
+    try {
+        val atClass = Class.forName("android.app.ActivityThread")
+        val systemMain = atClass.getMethod("systemMain").invoke(null)
+        val getSystemContext = atClass.getMethod("getSystemContext")
+        val context = getSystemContext.invoke(systemMain) as android.content.Context
+        SoterSupervisor.start(context)
+        Log.i(TAG, "Soter supervisor started")
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to start Soter supervisor", e)
+    }
+}
 
 private fun maintainService() {
     Log.i(TAG, "Service started, entering maintenance mode")
