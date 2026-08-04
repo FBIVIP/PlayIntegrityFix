@@ -221,7 +221,7 @@
 // LightRefBase used to be declared in this header, so we have to include it
 #include <utils/LightRefBase.h>
 
-#include <utils/StrongPointer.h>
+#include "utils/StrongPointer.h"
 #include <utils/TypeHelpers.h>
 
 // ---------------------------------------------------------------------------
@@ -542,7 +542,9 @@ wp<T> wp<T>::fromExisting(T* other) {
     if (!other) return nullptr;
 
     auto refs = other->getWeakRefs();
-    refs->incWeakRequireWeak(other);
+    //TrickyStoreOSS edit
+    //refs->incWeakRequireWeak(other);
+    refs->incWeak(other);
 
     wp<T> ret;
     ret.m_ptr = other;

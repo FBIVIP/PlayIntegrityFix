@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package android.security;
 
 public class KeyStore {
@@ -36,4 +41,3 @@ public class KeyStore {
     public static final int VALUE_CORRUPTED = 8;
     public static final int WRONG_PASSWORD = 10;
 }
-

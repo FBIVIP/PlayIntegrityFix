@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package android.security.keystore;
 
 import android.os.IBinder;
@@ -10,7 +15,7 @@ public interface IKeystoreCertificateChainCallback {
 
     public static abstract class Stub {
         public static IKeystoreCertificateChainCallback asInterface(IBinder b) {
-            throw new UnsupportedOperationException("STUB!");
+            throw new RuntimeException("");
         }
     }
 }

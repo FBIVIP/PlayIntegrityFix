@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package android.system.keystore2;
 
 import android.os.Parcel;
@@ -7,12 +12,7 @@ import androidx.annotation.NonNull;
 
 public class CreateOperationResponse implements Parcelable {
     public IKeystoreOperation iOperation;
-
-    public OperationChallenge operationChallenge;
-
     public KeyParameters parameters;
-
-    public byte[] upgradedBlob;
 
     public static final Creator<CreateOperationResponse> CREATOR = new Creator<CreateOperationResponse>() {
         @Override
@@ -26,13 +26,16 @@ public class CreateOperationResponse implements Parcelable {
         }
     };
 
-    @Override
-    public int describeContents() {
-        throw new UnsupportedOperationException("STUB!");
+    public CreateOperationResponse() {
     }
 
     @Override
-    public void writeToParcel(@NonNull Parcel parcel, int i) {
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(@NonNull Parcel parcel, int flags) {
         throw new UnsupportedOperationException("STUB!");
     }
 }

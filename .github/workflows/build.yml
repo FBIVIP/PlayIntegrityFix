@@ -3,10 +3,16 @@ name: Build
 on:
   push:
     branches: [ "main" ]
-    paths-ignore: [ '**.md' ]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/**'
   pull_request:
     branches: [ "main" ]
-    paths-ignore: [ '**.md' ]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - '!.github/workflows/**'
   workflow_dispatch:
 
 concurrency:
@@ -16,38 +22,25 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    outputs:
+      releaseName: ${{ steps.prepareArtifact.outputs.releaseName }}
+      debugName: ${{ steps.prepareArtifact.outputs.debugName }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out
+        uses: actions/checkout@v7
         with:
           submodules: "recursive"
           fetch-depth: 0
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 21
-          cache: 'gradle'
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
-
-      - name: Cache Rust artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin/cargo-ndk
-            native-certgen/target
-          key: rust-${{ runner.os }}-${{ hashFiles('native-certgen/Cargo.lock') }}
-          restore-keys: rust-${{ runner.os }}-
-
-      - name: Install cargo-ndk
-        run: command -v cargo-ndk || cargo install cargo-ndk
+          java-version: 26
 
       - name: Set up ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -59,111 +52,80 @@ jobs:
             ccache-
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6.2.0
 
       - name: Build with Gradle
-        run: |
-          chmod +x ./gradlew
-          ./gradlew zipRelease zipDebug -Porg.gradle.parallel=true -Porg.gradle.vfs.watch=true -Dorg.gradle.jvmargs=-Xmx2048m
+        run: ./gradlew --parallel assembleRelease assembleDebug lintRelease --stacktrace
 
-      - name: Read version
-        id: ver
+      - name: Prepare artifact
+        id: prepareArtifact
         run: |
-          ver=$(grep 'val verName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
-          count=$(git rev-list HEAD --count)
-          echo "version=${ver}-${count}" >> "$GITHUB_OUTPUT"
+          set -e
+          RELEASE_FILE=$(find out -name "*Release*.zip" | head -1)
+          DEBUG_FILE=$(find out -name "*Debug*.zip" | head -1)
 
-      - name: List build artifacts
-        run: |
-          echo "Release: $(ls out/*Release*.zip | head -1) ($(du -h out/*Release*.zip | head -1 | cut -f1))"
-          echo "Debug: $(ls out/*Debug*.zip | head -1) ($(du -h out/*Debug*.zip | head -1 | cut -f1))"
+          if [[ -z "$RELEASE_FILE" || -z "$DEBUG_FILE" ]]; then
+            echo "::error::Could not find release or debug files in out/"
+            ls -la out/ || echo "out/ directory does not exist"
+            exit 1
+          fi
 
-      - uses: actions/upload-artifact@v4
+          echo "releaseName=$(basename "$RELEASE_FILE" .zip)" >> "$GITHUB_OUTPUT"
+          echo "debugName=$(basename "$DEBUG_FILE" .zip)" >> "$GITHUB_OUTPUT"
+          echo "releaseFile=$RELEASE_FILE" >> "$GITHUB_OUTPUT"
+          echo "debugFile=$DEBUG_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release
+        uses: actions/upload-artifact@v7
         with:
-          name: TEESimulator-RS-release-zip
-          path: out/TEESimulator-RS-*-Release.zip
+          name: ${{ steps.prepareArtifact.outputs.releaseName }}
+          path: ${{ steps.prepareArtifact.outputs.releaseFile }}
           retention-days: 30
-          compression-level: 0
+          archive: false
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload debug
+        uses: actions/upload-artifact@v7
         with:
-          name: TEESimulator-RS-debug-zip
-          path: out/TEESimulator-RS-*-Debug.zip
+          name: ${{ steps.prepareArtifact.outputs.debugName }}
+          path: ${{ steps.prepareArtifact.outputs.debugFile }}
           retention-days: 7
-          compression-level: 0
+          archive: false
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload release mappings
+        uses: actions/upload-artifact@v7
         with:
-          name: release-mappings
-          path: app/build/outputs/mapping/release
+          name: release-mappings-${{ github.run_number }}
+          path: "./app/build/outputs/mapping/release"
           retention-days: 30
           compression-level: 9
 
-  release:
-    needs: build
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Gradle Tasks**: assembleRelease, assembleDebug, lintRelease" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "- **Release Artifact**: ${{ steps.prepareArtifact.outputs.releaseName }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Debug Artifact**: ${{ steps.prepareArtifact.outputs.debugName }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  dependency-submission:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          submodules: "recursive"
 
-      - name: Read version
-        id: ver
-        run: |
-          ver=$(grep 'val verName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
-          count=$(git rev-list HEAD --count)
-          echo "version=${ver}-${count}" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/download-artifact@v4
+      - name: Setup Java
+        uses: actions/setup-java@v5
         with:
-          name: TEESimulator-RS-release-zip
-          path: zips
+          distribution: temurin
+          java-version: 26
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: TEESimulator-RS-debug-zip
-          path: zips
-
-      - name: Extract changelog
-        run: |
-          ver="${VER#v}"
-          awk "/^## TEESimulator-RS v${ver%%-*}/{flag=1; next} /^## TEESimulator-RS v/{if(flag) exit} flag" module/changelog.md > /tmp/notes.md
-          cat /tmp/notes.md
-        env:
-          VER: ${{ steps.ver.outputs.version }}
-
-      - name: Create release
-        run: |
-          gh release delete "$VER" --yes 2>/dev/null || true
-          RELEASE=$(ls zips/*Release*.zip | head -1)
-          DEBUG=$(ls zips/*Debug*.zip | head -1)
-          gh release create "$VER" \
-            --title "$VER" \
-            --latest \
-            --notes-file /tmp/notes.md \
-            "$RELEASE" \
-            "$DEBUG"
-        env:
-          VER: ${{ steps.ver.outputs.version }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Bump update.json
-        run: |
-          COUNT=$(git rev-list HEAD --count)
-          RELEASE_NAME=$(basename zips/*Release*.zip)
-          ZIP_URL="https://github.com/${{ github.repository }}/releases/download/${VER}/${RELEASE_NAME}"
-          jq ".versionCode = $COUNT | .zipUrl = \"$ZIP_URL\"" module/update.json > /tmp/update.json
-          mv /tmp/update.json module/update.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add module/update.json
-          git diff --cached --quiet || {
-            git commit -m "chore(release): bump update.json to $VER [skip ci]"
-            git push origin HEAD:main
-          }
-        env:
-          VER: ${{ steps.ver.outputs.version }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Submit dependency graph
+        uses: gradle/actions/dependency-submission@v6.2.0

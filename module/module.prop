@@ -1,7 +1,7 @@
-id=integrityfateh7
-name=TEESimulator-RS
-version=${REPLACEMEVER}
-versionCode=${REPLACEMEVERCODE}
-author=JingMatrix, Enginex0
-description=Software simulation for Android hardware-backed key pairs with key attestation
-updateJson=https://raw.githubusercontent.com/Enginex0/TEESimulator-RS/main/module/update.json
+id=tricky_store
+name=Tricky Store OSS
+version=REPLACEMEVER
+versionCode=REPLACEMEVERCODE
+author=beakthoven
+description=A trick of keystore but open source.
+updateJson=https://raw.githubusercontent.com/beakthoven/TrickyStoreOSS/changelog/update.json

@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package android.security.keymaster;
 
 import android.os.Parcel;
@@ -22,126 +27,126 @@ public class KeymasterArguments implements Parcelable {
     public static final @NonNull Parcelable.Creator<KeymasterArguments> CREATOR = new Parcelable.Creator<KeymasterArguments>() {
         @Override
         public KeymasterArguments createFromParcel(Parcel in) {
-            throw new UnsupportedOperationException("STUB!");
+            throw new RuntimeException("");
         }
 
         @Override
         public KeymasterArguments[] newArray(int size) {
-            throw new UnsupportedOperationException("STUB!");
+            throw new RuntimeException("");
         }
     };
 
     public KeymasterArguments() {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     private KeymasterArguments(Parcel in) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addEnum(int tag, int value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addEnums(int tag, int... values) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public int getEnum(int tag, int defaultValue) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public List<Integer> getEnums(int tag) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     private void addEnumTag(int tag, int value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     private int getEnumTagValue(KeymasterArgument arg) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addUnsignedInt(int tag, long value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public long getUnsignedInt(int tag, long defaultValue) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addUnsignedLong(int tag, BigInteger value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public List<BigInteger> getUnsignedLongs(int tag) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     private void addLongTag(int tag, BigInteger value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     private BigInteger getLongTagValue(KeymasterArgument arg) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addBoolean(int tag) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public boolean getBoolean(int tag) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addBytes(int tag, byte[] value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public byte[] getBytes(int tag, byte[] defaultValue) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addDate(int tag, Date value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void addDateIfNotNull(int tag, Date value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public Date getDate(int tag, Date defaultValue) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     private KeymasterArgument getArgumentByTag(int tag) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public boolean containsTag(int tag) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public int size() {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public void readFromParcel(Parcel in) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     @Override
     public int describeContents() {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     public static BigInteger toUint64(long value) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 }

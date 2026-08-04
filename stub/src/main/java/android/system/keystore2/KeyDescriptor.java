@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package android.system.keystore2;
 
 import android.os.Parcel;
@@ -14,22 +19,22 @@ public class KeyDescriptor implements Parcelable {
     public static final Creator<KeyDescriptor> CREATOR = new Creator<KeyDescriptor>() {
         @Override
         public KeyDescriptor createFromParcel(Parcel in) {
-            throw new UnsupportedOperationException("STUB!");
+            throw new RuntimeException();
         }
 
         @Override
         public KeyDescriptor[] newArray(int size) {
-            throw new UnsupportedOperationException("STUB!");
+            throw new RuntimeException();
         }
     };
 
     @Override
     public int describeContents() {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 
     @Override
     public void writeToParcel(@NonNull Parcel parcel, int i) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException("");
     }
 }

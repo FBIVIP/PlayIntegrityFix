@@ -1,6 +1,8 @@
+// Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "utils/RefBase.h"
 #include "utils/String16.h"
-#include "utils/String8.h"
 #include "utils/StrongPointer.h"
 
 namespace android {
@@ -47,8 +49,6 @@ bool RefBase::weakref_type::attemptIncWeak(const void *id) {
 }
 
 void sp_report_race() {}
-
-String8::String8() {}
 
 String16::String16() {}
 

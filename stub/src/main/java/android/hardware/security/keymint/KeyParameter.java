@@ -1,3 +1,8 @@
+/*
+ * Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package android.hardware.security.keymint;
 
 import android.os.Parcel;
@@ -6,15 +11,15 @@ import android.os.Parcelable;
 import androidx.annotation.NonNull;
 
 public class KeyParameter implements Parcelable {
-    public static final Creator<KeyParameter> CREATOR = new Creator<KeyParameter>() {
+    public static final Creator<KeyParameter> CREATOR = new Creator<>() {
         @Override
         public KeyParameter createFromParcel(Parcel in) {
-            throw new UnsupportedOperationException("STUB!");
+            throw new RuntimeException();
         }
 
         @Override
         public KeyParameter[] newArray(int size) {
-            throw new UnsupportedOperationException("STUB!");
+            throw new RuntimeException();
         }
     };
     public int tag = 0;
@@ -22,11 +27,11 @@ public class KeyParameter implements Parcelable {
 
     @Override
     public int describeContents() {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException();
     }
 
     @Override
     public void writeToParcel(@NonNull Parcel parcel, int i) {
-        throw new UnsupportedOperationException("STUB!");
+        throw new RuntimeException();
     }
 }

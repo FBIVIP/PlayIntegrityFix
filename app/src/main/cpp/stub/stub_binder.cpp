@@ -1,15 +1,13 @@
+// Copyright 2026 Dakkshesh <beakthoven@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "binder/Binder.h"
 #include "binder/BpBinder.h"
-#include "binder/IInterface.h"
 #include "binder/IPCThreadState.h"
 #include "binder/IServiceManager.h"
-#include "binder/RpcSession.h"
 #include "binder/Status.h"
 
 namespace android {
-
-IInterface::IInterface() {}
-IInterface::~IInterface() {}
 
 IBinder::IBinder() {}
 IBinder::~IBinder() {}
