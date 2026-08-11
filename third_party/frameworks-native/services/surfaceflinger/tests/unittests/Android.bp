@@ -1,0 +1,179 @@
+// Copyright 2018 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_native_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_native_license"],
+    default_team: "trendy_team_android_core_graphics_stack",
+}
+
+// This is a step towards pulling out the "backend" sources to clean up the
+// dependency graph between CompositionEngine and SurfaceFlinger.
+// MockNativeWindow doesn't strictly belong here, but this works for now so
+// that CompositionEngine tests can use these mocks.
+filegroup {
+    name: "libsurfaceflinger_backend_mock_sources",
+    srcs: [
+        ":poweradvisor_mock_sources",
+        "mock/DisplayHardware/MockComposer.cpp",
+        "mock/DisplayHardware/MockHWC2.cpp",
+        "mock/DisplayHardware/MockHWComposer.cpp",
+        "mock/system/window/MockNativeWindow.cpp",
+    ],
+}
+
+cc_library_headers {
+    name: "libsurfaceflinger_backend_mock_headers",
+    export_include_dirs: ["."],
+    static_libs: [
+        "libgmock",
+        "libgtest",
+    ],
+    export_static_lib_headers: [
+        "libgmock",
+        "libgtest",
+    ],
+}
+
+filegroup {
+    name: "poweradvisor_mock_sources",
+    srcs: [
+        "mock/PowerAdvisor/*.cpp",
+    ],
+}
+
+filegroup {
+    name: "libsurfaceflinger_mock_sources",
+    srcs: [
+        "mock/MockEventThread.cpp",
+        "mock/MockFrameTimeline.cpp",
+        "mock/MockFrameTracer.cpp",
+        "mock/MockNativeWindowSurface.cpp",
+        "mock/MockTimeStats.cpp",
+        "mock/MockVsyncController.cpp",
+        "mock/MockVSyncDispatch.cpp",
+        "mock/MockVSyncTracker.cpp",
+    ],
+}
+
+cc_aconfig_library {
+    name: "libsurfaceflingerflags_test",
+    aconfig_declarations: "surfaceflinger_flags",
+    mode: "test",
+}
+
+cc_test {
+    name: "libsurfaceflinger_unittest",
+    defaults: [
+        "libsurfaceflinger_mocks_defaults",
+        "skia_renderengine_deps",
+        "surfaceflinger_defaults",
+    ],
+    test_suites: ["device-tests"],
+    header_libs: ["surfaceflinger_tests_common_headers"],
+    srcs: [
+        ":libsurfaceflinger_backend_mock_sources",
+        ":libsurfaceflinger_mock_sources",
+        ":libsurfaceflinger_sources",
+        "*.cpp",
+    ],
+}
+
+cc_defaults {
+    name: "libsurfaceflinger_mocks_defaults",
+    defaults: [
+        "android.hardware.graphics.common-ndk_static",
+        "android.hardware.graphics.composer3-ndk_static",
+        "android.hardware.power-ndk_static",
+        "librenderengine_deps",
+        "libsurfaceflinger_common_test_deps",
+        "libsurfaceflinger_proto_deps",
+    ],
+    static_libs: [
+        "android.hardware.common-V2-ndk",
+        "android.hardware.common.fmq-V1-ndk",
+        "android.hardware.graphics.composer@2.1",
+        "android.hardware.graphics.composer@2.2",
+        "android.hardware.graphics.composer@2.3",
+        "android.hardware.graphics.composer@2.4",
+        "android.hardware.power@1.0",
+        "android.hardware.power@1.1",
+        "android.hardware.power@1.2",
+        "android.hardware.power@1.3",
+        "libaidlcommonsupport",
+        "libcompositionengine_mocks",
+        "libcompositionengine",
+        "libframetimeline",
+        "libgmock",
+        "libgui_mocks",
+        "libperfetto_client_experimental",
+        "librenderengine",
+        "librenderengine_mocks",
+        "libscheduler",
+        "libserviceutils",
+        "libtimestats",
+        "libtimestats_atoms_proto",
+        "libtimestats_proto",
+        "libtonemap",
+        "perfetto_trace_protos",
+    ],
+    shared_libs: [
+        "android.hardware.configstore-utils",
+        "android.hardware.configstore@1.0",
+        "android.hardware.configstore@1.1",
+        "android.hardware.graphics.allocator@2.0",
+        "android.hardware.graphics.allocator@3.0",
+        "android.hardware.graphics.common@1.2",
+        "libbase",
+        "libbinder",
+        "libbinder_ndk",
+        "libcutils",
+        "libEGL",
+        "libfmq",
+        "libGLESv1_CM",
+        "libGLESv2",
+        "libgui",
+        "libhidlbase",
+        "libinput",
+        "liblog",
+        "libnativewindow",
+        "libpowermanager",
+        "libprocessgroup",
+        "libprotobuf-cpp-lite",
+        "libstatslog_surfaceflinger",
+        "libSurfaceFlingerProp",
+        "libsync",
+        "libui",
+        "libutils",
+        "libtracing_perfetto",
+    ],
+    header_libs: [
+        "android.hardware.graphics.composer3-command-buffer",
+        "android.hardware.graphics.composer@2.1-command-buffer",
+        "android.hardware.graphics.composer@2.2-command-buffer",
+        "android.hardware.graphics.composer@2.3-command-buffer",
+        "android.hardware.graphics.composer@2.4-command-buffer",
+        "libscheduler_test_headers",
+        "libsurfaceflinger_headers",
+    ],
+}
+
+cc_library_headers {
+    name: "libsurfaceflinger_mocks_headers",
+    export_include_dirs: ["."],
+}

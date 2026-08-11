@@ -1,0 +1,58 @@
+/*
+ * Copyright (C) 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// To render: "dot -Tpng state.gv -o state.png"
+digraph effect_state_machine {
+
+    rankdir=LR; // Left to Right layout
+
+    label="Effect State Machine";
+    fontsize=20;
+    labelloc=top;
+
+    node [fontname="Helvetica", fontsize=12, style=filled];
+
+    // Initial state node
+    I [shape=point, fillcolor=black, width=0.2];
+
+    // Final state node
+    F [shape=doublecircle, label="Destroyed"];
+
+    // Define other nodes with colors
+    INIT [shape=ellipse, fillcolor=lightgreen, label="INIT"];
+    IDLE [shape=ellipse, fillcolor=lightblue, label="IDLE"];
+    PROCESSING [shape=ellipse, fillcolor=lightyellow, label="PROCESSING"];
+    DRAINING [shape=ellipse, fillcolor=lightgrey, label="DRAINING"];
+    ANY_STATE [shape=ellipse, style=dashed, label="Any State", fillcolor=white];
+
+    // Main transitions
+    I -> INIT [label="IFactory.createEffect", fontcolor="navy"];
+    INIT -> IDLE [label="IEffect.open()", fontcolor="lime"];
+    IDLE -> PROCESSING [label="IEffect.command(START)"];
+    PROCESSING -> IDLE [label="IEffect.command(STOP) (if draining not required)\nIEffect.command(RESET)"];
+    PROCESSING -> DRAINING [label="IEffect.command(STOP) (if draining required)", fontcolor="orange"];
+    DRAINING -> IDLE [label="IEffect.command(RESET)\nDraining complete (automatic transition)"];
+    DRAINING -> PROCESSING [label="IEffect.command(START) (Interrupt draining)"];
+    IDLE -> INIT [label="IEffect.close()"];
+
+    // Global transitions
+    subgraph cluster_global_transitions {
+        label="Global Transitions (Any State)";
+        style=dashed;
+        ANY_STATE -> F [label="IFactory.destroyEffect", style="bold"];
+        ANY_STATE -> ANY_STATE [label="IEffect.getParameter\nIEffect.setParameter\nIEffect.getDescriptor\nIEffect.getState\nIEffect.reopen", fontsize=10];
+    }
+}

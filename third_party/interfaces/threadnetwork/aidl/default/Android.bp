@@ -1,0 +1,188 @@
+//
+//  Copyright (c) 2022 Google LLC.
+//  All rights reserved.
+//
+//  This document is the property of Google LLC, Inc. It is
+//  considered proprietary and confidential information.
+//
+//  This document may not be reproduced or transmitted in any form,
+//  in whole or in part, without the express written permission of
+//  Google LLC.
+
+cc_binary {
+    name: "android.hardware.threadnetwork-service",
+    vendor: true,
+    relative_install_path: "hw",
+
+    defaults: ["android.hardware.threadnetwork-service.defaults"],
+
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+    ],
+
+    static_libs: [
+        "android.hardware.threadnetwork-V1-ndk",
+        "libbase",
+        "libcutils",
+        "libutils",
+        "openthread-common",
+        "openthread-hdlc",
+        "openthread-platform",
+        "openthread-posix",
+        "openthread-spi",
+        "openthread-url",
+    ],
+
+    stl: "c++_static",
+
+    srcs: [
+        "main.cpp",
+        "service.cpp",
+        "socket_interface.cpp",
+        "thread_chip.cpp",
+        "utils.cpp",
+    ],
+}
+
+cc_library_static {
+    name: "android.hardware.threadnetwork.lib",
+
+    vendor: true,
+    export_include_dirs: ["."],
+
+    defaults: ["android.hardware.threadnetwork-service.defaults"],
+
+    srcs: [
+        "service.cpp",
+        "thread_chip.cpp",
+        "utils.cpp",
+    ],
+
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+    ],
+
+    static_libs: [
+        "android.hardware.threadnetwork-V1-ndk",
+        "libbase",
+        "libcutils",
+        "libutils",
+        "openthread-common",
+        "openthread-hdlc",
+        "openthread-platform",
+        "openthread-posix",
+        "openthread-spi",
+        "openthread-url",
+    ],
+
+    stl: "c++_static",
+}
+
+cc_defaults {
+    name: "android.hardware.threadnetwork-service.defaults",
+    product_variables: {
+        debuggable: {
+            cppflags: [
+                "-DDEV_BUILD",
+            ],
+        },
+    },
+}
+
+cc_fuzz {
+    name: "android.hardware.threadnetwork-service.fuzzer",
+
+    defaults: ["service_fuzzer_defaults"],
+    shared_libs: [
+        "libbinder_ndk",
+    ],
+
+    static_libs: [
+        "android.hardware.threadnetwork-V1-ndk",
+        "libbase",
+        "liblog",
+        "openthread-common",
+        "openthread-hdlc",
+        "openthread-platform",
+        "openthread-posix",
+        "openthread-spi",
+        "openthread-url",
+    ],
+
+    srcs: [
+        "socket_interface.cpp",
+        "thread_chip.cpp",
+        "utils.cpp",
+        "fuzzer.cpp",
+    ],
+
+    fuzz_config: {
+        cc: [
+            "zhanglongxia@google.com",
+        ],
+    },
+}
+
+prebuilt_etc {
+    name: "threadnetwork-default.xml",
+    src: "threadnetwork-default.xml",
+    sub_dir: "vintf",
+    installable: false,
+}
+
+prebuilt_etc {
+    name: "threadnetwork-service.rc",
+    src: "threadnetwork-service.rc",
+    installable: false,
+}
+
+filegroup {
+    name: "com.android.hardware.threadnetwork_manifest",
+    srcs: ["manifest.json"],
+}
+
+filegroup {
+    name: "com.android.hardware.threadnetwork_file_contexts",
+    srcs: ["file_contexts"],
+}
+
+apex {
+    name: "com.android.hardware.threadnetwork",
+    manifest: ":com.android.hardware.threadnetwork_manifest",
+    file_contexts: ":com.android.hardware.threadnetwork_file_contexts",
+    key: "com.android.hardware.key",
+    certificate: ":com.android.hardware.certificate",
+    updatable: false,
+    vendor: true,
+
+    binaries: [
+        "android.hardware.threadnetwork-service",
+        "ot-rcp",
+    ],
+
+    prebuilts: [
+        "threadnetwork-default.xml", // vintf_fragment
+        "threadnetwork-service.rc", // init_rc
+        "android.hardware.thread_network.prebuilt.xml", // permission
+    ],
+}
+
+prebuilt_etc {
+    name: "threadnetwork-service-simulation-rcp.rc",
+    src: "threadnetwork-service-simulation-rcp.rc",
+    installable: false,
+}
+
+// Thread HAL service which uses a simulation RCP (i.e. ot-rcp),
+// typically used in emulator devices.
+override_apex {
+    name: "com.android.hardware.threadnetwork-simulation-rcp",
+    base: "com.android.hardware.threadnetwork",
+    prebuilts: [
+        "threadnetwork-service-simulation-rcp.rc",
+        "threadnetwork-default.xml",
+        "android.hardware.thread_network.prebuilt.xml",
+    ],
+}

@@ -1,0 +1,5 @@
+service trusty-hwcryptohal /vendor/bin/hw/android.hardware.trusty.hwcryptohal-service \
+-d ${ro.hardware.trusty_ipc_dev:-/dev/trusty-ipc-dev0}
+    class hal
+    user system
+    group system

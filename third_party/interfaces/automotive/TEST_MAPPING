@@ -1,0 +1,151 @@
+{
+  "auto-presubmit": [
+    {
+      "name": "AndroidCarApiTest"
+    },
+    {
+      "name": "CarSecurityPermissionTest"
+    },
+    {
+      "name": "CtsCarTestCases"
+    },
+    {
+      "name": "CtsCarBuiltinApiTestCases"
+    },
+    {
+    	"name": "CtsCarHostTestCases"
+    },
+    {
+    	"name": "CtsCarBuiltinApiHostTestCases"
+    },
+    {
+      "name": "CarServiceAudioTest"
+    },
+    {
+      "name": "CarServiceCarTest"
+    },
+    {
+      "name": "CarServiceClusterTest"
+    },
+    {
+      "name": "CarServiceDiagnosticTest"
+    },
+    {
+      "name": "CarServiceDrivingStateTest"
+    },
+    {
+      "name": "CarServiceEvsTest"
+    },
+    {
+      "name": "CarServiceGarageModeTest"
+    },
+    {
+      "name": "CarServiceInputTest"
+    },
+    {
+      "name": "CarServiceOsTest"
+    },
+    {
+      "name": "CarServicePmTest"
+    },
+    {
+      "name": "CarServicePowerTest"
+    },
+    {
+      "name": "CarServicePropertyTest"
+    },
+    {
+      "name": "CarServiceRemoteAccessTest"
+    },
+    {
+      "name": "CarServiceStorageMonitoringTest"
+    },
+    {
+      "name": "CarServiceTelemetryTest"
+    },
+    {
+      "name": "CarServiceCarUnitTest"
+    },
+    {
+      "name": "CarServiceWifiUnitTest"
+    },
+    {
+      "name": "CarServiceWatchdogUnitTest"
+    },
+    {
+      "name": "CarServiceVmsUnitTest"
+    },
+    {
+      "name": "CarServiceUtilUnitTest"
+    },
+    {
+      "name": "CarServiceUserUnitTest"
+    },
+    {
+      "name": "CarServiceTelemetryUnitTest"
+    },
+    {
+      "name": "CarServiceSystemUiUnitTest"
+    },
+    {
+      "name": "CarServiceSystemInterfaceUnitTest"
+    },
+    {
+      "name": "CarServiceStorageMonitoringUnitTest"
+    },
+    {
+      "name": "CarServiceStatsUnitTest"
+    },
+    {
+      "name": "CarServiceRemoteAccessUnitTest"
+    },
+    {
+      "name": "CarServicePropertyUnitTest"
+    },
+    {
+      "name": "CarServicePowerUnitTest"
+    },
+    {
+      "name": "CarServicePmUnitTest"
+    },
+    {
+      "name": "CarServiceOsUnitTest"
+    },
+    {
+      "name": "CarServiceOemUnitTest"
+    },
+    {
+      "name": "CarServiceOccupantConnectionUnitTest"
+    },
+    {
+      "name": "CarServiceHalUnitTest"
+    },
+    {
+      "name": "CarServiceGarageModeUnitTest"
+    },
+    {
+      "name": "CarServiceEvsUnitTest"
+    },
+    {
+      "name": "CarServiceClusterUnitTest"
+    },
+    {
+      "name": "CarServiceBluetoothUnitTest"
+    },
+    {
+      "name": "CarServiceAudioUnitTest"
+    },
+    {
+      "name": "CarServiceAmUnitTest"
+    },
+    {
+      "name": "CarServiceAdminUnitTest"
+    },
+    {
+      "name": "CarServiceVmsTest"
+    },
+    {
+      "name": "CarServiceWatchdogTest"
+    }
+  ]
+}

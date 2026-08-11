@@ -1,0 +1,233 @@
+package: "com.android.input.flags"
+container: "system"
+
+flag {
+  name: "enable_outbound_event_verification"
+  namespace: "input"
+  description: "Set to true to enable crashing whenever bad outbound events are detected inside InputTransport"
+  bug: "271455682"
+}
+
+flag {
+  name: "enable_inbound_event_verification"
+  namespace: "input"
+  description: "Set to true to enable crashing whenever bad inbound events are going into InputDispatcher"
+  bug: "271455682"
+}
+
+flag {
+  name: "remove_input_channel_from_windowstate"
+  namespace: "input"
+  description: "Do not store a copy of input channel inside WindowState."
+  bug: "323450804"
+}
+
+flag {
+  name: "enable_input_event_tracing"
+  namespace: "input"
+  description: "Set to true to enable input event tracing, including always-on tracing on non-user builds"
+  bug: "210460522"
+}
+
+flag {
+  name: "enable_multi_device_input"
+  namespace: "input"
+  description: "Set to true to enable multi-device input: touch and stylus can be active at the same time, but in different windows"
+  bug: "211379801"
+}
+
+flag {
+  name: "split_all_touches"
+  namespace: "input"
+  description: "Set FLAG_SPLIT_TOUCHES to true for all windows, regardless of what they specify. This is essentially deprecating this flag by forcefully enabling the split functionality"
+  bug: "239934827"
+}
+
+flag {
+  name: "a11y_crash_on_inconsistent_event_stream"
+  namespace: "accessibility"
+  description: "Brings back fatal logging for inconsistent event streams originating from accessibility."
+  bug: "299977100"
+}
+
+flag {
+  name: "report_palms_to_gestures_library"
+  namespace: "input"
+  description: "Report touches marked as palm by firmware to gestures library"
+  bug: "302505955"
+}
+
+flag {
+  name: "enable_touchpad_typing_palm_rejection"
+  namespace: "input"
+  description: "Enabling additional touchpad palm rejection will disable the tap to click while the user is typing on a physical keyboard"
+  bug: "301055381"
+}
+
+flag {
+  name: "enable_v2_touchpad_typing_palm_rejection"
+  namespace: "input"
+  description: "In addition to touchpad palm rejection v1, v2 will also cancel ongoing move gestures while typing and add delay in re-enabling the tap to click."
+  bug: "301055381"
+}
+
+flag {
+  name: "disable_reject_touch_on_stylus_hover"
+  namespace: "input"
+  description: "Disable touch rejection when the stylus hovers the screen"
+  bug: "301216095"
+}
+
+flag {
+  name: "enable_input_filter_rust_impl"
+  namespace: "input"
+  description: "Enable input filter rust implementation"
+  bug: "294546335"
+}
+
+flag {
+  name: "override_key_behavior_permission_apis"
+  is_exported: true
+  namespace: "input"
+  description: "enable override key behavior permission APIs"
+  bug: "309018874"
+}
+
+flag {
+  name: "rate_limit_user_activity_poke_in_dispatcher"
+  namespace: "input"
+  description: "Move user-activity poke rate-limiting from PowerManagerService to InputDispatcher."
+  bug: "320499729"
+}
+
+flag {
+  name: "input_device_view_behavior_api"
+  is_exported: true
+  namespace: "input"
+  description: "Controls the API to provide InputDevice view behavior."
+  bug: "246946631"
+}
+
+flag {
+  name: "enable_touchpad_fling_stop"
+  namespace: "input"
+  description: "Enable fling scrolling to be stopped by putting a finger on the touchpad again"
+  bug: "281106755"
+}
+
+flag {
+  name: "enable_prediction_pruning_via_jerk_thresholding"
+  namespace: "input"
+  description: "Enable prediction pruning based on jerk thresholds."
+  bug: "266747654"
+  is_fixed_read_only: true
+}
+
+flag {
+  name: "device_associations"
+  namespace: "input"
+  description: "Binds InputDevice name and InputDevice description against display unique id."
+  bug: "324075859"
+}
+
+flag {
+  name: "enable_multi_device_same_window_stream"
+  namespace: "input"
+  description: "Allow multiple input devices to be active in the same window simultaneously"
+  bug: "330752824"
+}
+
+flag {
+  name: "hide_pointer_indicators_for_secure_windows"
+  namespace: "input"
+  description: "Hide touch and pointer indicators if a secure window is present on display"
+  bug: "325252005"
+}
+
+flag {
+  name: "enable_keyboard_classifier"
+  namespace: "input"
+  description: "Keyboard classifier that classifies all keyboards into alphabetic or non-alphabetic"
+  bug: "263559234"
+}
+
+flag {
+  name: "show_pointers_for_partial_screenshare"
+  namespace: "input"
+  description: "Show touch and pointer indicators when mirroring a single task"
+  bug: "310179437"
+}
+
+flag {
+  name: "include_relative_axis_values_for_captured_touchpads"
+  namespace: "input"
+  description: "Include AXIS_RELATIVE_X and AXIS_RELATIVE_Y values when reporting touches from captured touchpads."
+  bug: "330522990"
+}
+
+flag {
+  name: "enable_per_device_input_latency_metrics"
+  namespace: "input"
+  description: "Capture input latency metrics on a per device granular level using histograms."
+  bug: "270049345"
+}
+
+flag {
+  name: "collect_palm_rejection_quality_metrics"
+  namespace: "input"
+  description: "Collect quality metrics on framework palm rejection."
+  bug: "341717757"
+}
+
+flag {
+  name: "enable_touchpad_no_focus_change"
+  namespace: "input"
+  description: "Prevents touchpad gesture changing window focus."
+  bug: "364460018"
+}
+
+flag {
+  name: "enable_input_policy_profile"
+  namespace: "input"
+  description: "Apply input policy profile for input threads."
+  bug: "347122505"
+  is_fixed_read_only: true
+}
+
+flag {
+  name: "keyboard_repeat_keys"
+  namespace: "input"
+  description: "Allow user to enable key repeats or configure timeout before key repeat and key repeat delay rates."
+  bug: "336585002"
+}
+
+flag {
+  name: "rotary_input_telemetry"
+  namespace: "wear_frameworks"
+  description: "Enable telemetry for rotary input"
+  bug: "370353565"
+}
+
+flag {
+  name: "set_input_device_kernel_wake"
+  namespace: "input"
+  description: "Set input device's power/wakeup sysfs node"
+  bug: "372812925"
+}
+
+flag {
+  name: "enable_alphabetic_keyboard_wake"
+  namespace: "input"
+  description: "Enable wake from alphabetic keyboards."
+  bug: "352856881"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "connected_displays_cursor"
+  namespace: "lse_desktop_experience"
+  description: "Allow cursor to transition across multiple connected displays"
+  bug: "362719483"
+}

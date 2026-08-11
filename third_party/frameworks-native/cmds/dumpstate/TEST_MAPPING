@@ -1,0 +1,36 @@
+{
+  "presubmit": [
+    {
+      "name": "BugreportManagerTestCases",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.LargeTest"
+        }
+      ]
+    },
+    {
+      "name": "dumpstate_test"
+    },
+    {
+        "name": "CtsSecurityHostTestCases",
+        "options": [
+            {
+                "include-filter": "android.security.cts.SELinuxHostTest#testNoBugreportDenials"
+            }
+        ]
+    }
+  ],
+  "postsubmit": [
+    {
+      "name": "BugreportManagerTestCases"
+    },
+    {
+      "name": "dumpstate_smoke_test"
+    }
+  ],
+  "imports": [
+    {
+      "path": "frameworks/base/packages/Shell"
+    }
+  ]
+}

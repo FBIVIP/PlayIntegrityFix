@@ -1,0 +1,164 @@
+{
+  "presubmit": [
+    {
+      "name": "CtsWindowManagerDeviceInput",
+      "options": [
+        {
+          "include-filter": "android.server.wm.input.WindowInputTests"
+        }
+      ]
+    },
+    {
+      "name": "libinput_tests"
+    },
+    {
+      "name": "inputflinger_tests"
+    },
+    {
+      "name": "libchrome-gestures_test"
+    },
+    {
+      "name": "libpalmrejection_test"
+    },
+    {
+      "name": "InputTests"
+    },
+    {
+      "name": "libinputservice_test"
+    },
+    {
+      "name": "libgui_test",
+      "options": [
+        {
+          "native-test-flag": "--gtest_filter=\"InputSurfacesTest*:MultiDisplayTests*\""
+        }
+      ]
+    },
+    {
+      "name": "CtsHardwareTestCases_cts_tests"
+    },
+    {
+      "name": "CtsInputTestCases"
+    },
+    {
+      "name": "CtsViewTestCases_cts_input"
+    },
+    {
+      "name": "CtsViewTestCases_input_related"
+    },
+    {
+      "name": "CtsWidgetTestCases_seekbar_and_numberpicker"
+    },
+    {
+      "name": "FrameworksCoreTests_hardware_input"
+    },
+    {
+      "name": "FrameworksCoreTests_view_verified"
+    },
+    {
+      "name": "CtsAppTestCases_cts_toolbaractionbartest"
+    },
+    {
+      "name": "FrameworksServicesTests_android_server_input"
+    },
+    {
+      "name": "CtsSecurityTestCases_cts_motioneventtest"
+    },
+    {
+      "name": "CtsSecurityBulletinHostTestCases",
+      "options": [
+        {
+          "include-filter": "android.security.cts.Poc19_03#testPocBug_115739809"
+        }
+      ]
+    },
+    {
+      "name": "monkey_test"
+    },
+    {
+      "name": "CtsSurfaceControlTests"
+    }
+  ],
+  "postsubmit": [
+    {
+      "name": "CtsWindowManagerDeviceWindow_window_windowinputtests"
+    },
+    {
+      "name": "libinput_tests"
+    },
+    {
+      "name": "inputflinger_tests"
+    },
+    {
+      "name": "libpalmrejection_test"
+    },
+    {
+      "name": "InputTests"
+    },
+    {
+      "name": "libinputservice_test"
+    },
+    {
+      "name": "libgui_test",
+      "options": [
+        {
+          "native-test-flag": "--gtest_filter=\"InputSurfacesTest*:MultiDisplayTests*\""
+        }
+      ]
+    },
+    {
+      "name": "CtsHardwareTestCases_cts_tests"
+    },
+    {
+      "name": "CtsInputTestCases"
+    },
+    {
+      "name": "CtsViewTestCases_cts_input"
+    },
+    {
+      "name": "CtsViewTestCases_input_related"
+    },
+    {
+      "name": "CtsWidgetTestCases_seekbar_and_numberpicker"
+    },
+    {
+      "name": "FrameworksCoreTests_view_verified"
+    },
+    {
+      "name": "CtsAppTestCases_cts_toolbaractionbartest"
+    },
+    {
+      "name": "FrameworksServicesTests_server_input"
+    },
+    {
+      "name": "CtsSecurityTestCases_cts_motioneventtest"
+    },
+    {
+      "name": "CtsSecurityBulletinHostTestCases",
+      "options": [
+        {
+          "include-filter": "android.security.cts.Poc19_03#testPocBug_115739809"
+        }
+      ]
+    },
+    {
+      "name": "CtsInputHostTestCases"
+    },
+    {
+      "name": "monkey_test"
+    },
+    {
+      "name": "CtsInputRootTestCases"
+    }
+  ],
+  "platinum-postsubmit": [
+    {
+      "name": "inputflinger_tests"
+    }
+  ],
+  "staged-platinum-postsubmit": [
+    {
+      "name": "libinput_tests"
+    }
+  ]
+}

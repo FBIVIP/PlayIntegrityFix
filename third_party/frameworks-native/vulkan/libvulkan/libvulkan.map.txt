@@ -1,0 +1,256 @@
+LIBVULKAN {
+  global:
+    vkAcquireNextImage2KHR; # introduced=28
+    vkAcquireNextImageKHR;
+    vkAllocateCommandBuffers;
+    vkAllocateDescriptorSets;
+    vkAllocateMemory;
+    vkBeginCommandBuffer;
+    vkBindBufferMemory2; # introduced=28
+    vkBindBufferMemory;
+    vkBindImageMemory2; # introduced=28
+    vkBindImageMemory;
+    vkCmdBeginQuery;
+    vkCmdBeginRenderPass2; # introduced=31
+    vkCmdBeginRenderPass;
+    vkCmdBeginRendering; # introduced=33
+    vkCmdBindDescriptorSets2; #introduced=36
+    vkCmdBindDescriptorSets;
+    vkCmdBindIndexBuffer2; #introduced=36
+    vkCmdBindIndexBuffer;
+    vkCmdBindPipeline;
+    vkCmdBindVertexBuffers2; #introduced=33
+    vkCmdBindVertexBuffers;
+    vkCmdBlitImage2; #introduced=33
+    vkCmdBlitImage;
+    vkCmdClearAttachments;
+    vkCmdClearColorImage;
+    vkCmdClearDepthStencilImage;
+    vkCmdCopyBuffer2; #introduced=33
+    vkCmdCopyBuffer;
+    vkCmdCopyBufferToImage2; #introduced=33
+    vkCmdCopyBufferToImage;
+    vkCmdCopyImage2; #introduced=33
+    vkCmdCopyImage;
+    vkCmdCopyImageToBuffer2; #introduced=33
+    vkCmdCopyImageToBuffer;
+    vkCmdCopyQueryPoolResults;
+    vkCmdDispatch;
+    vkCmdDispatchBase; # introduced=28
+    vkCmdDispatchIndirect;
+    vkCmdDraw;
+    vkCmdDrawIndexed;
+    vkCmdDrawIndexedIndirect;
+    vkCmdDrawIndexedIndirectCount; # introduced=31
+    vkCmdDrawIndirect;
+    vkCmdDrawIndirectCount; # introduced=31
+    vkCmdEndQuery;
+    vkCmdEndRenderPass2; # introduced=31
+    vkCmdEndRenderPass;
+    vkCmdEndRendering; #introduced=33
+    vkCmdExecuteCommands;
+    vkCmdFillBuffer;
+    vkCmdNextSubpass2; # introduced=31
+    vkCmdNextSubpass;
+    vkCmdPipelineBarrier2; #introduced=33
+    vkCmdPipelineBarrier;
+    vkCmdPushConstants2; #introduced=36
+    vkCmdPushConstants;
+    vkCmdPushDescriptorSet2; #introduced=36
+    vkCmdPushDescriptorSet; #introduced=36
+    vkCmdPushDescriptorSetWithTemplate2; #introduced=36
+    vkCmdPushDescriptorSetWithTemplate; #introduced=36
+    vkCmdResetEvent2; #introduced=33
+    vkCmdResetEvent;
+    vkCmdResetQueryPool;
+    vkCmdResolveImage2; #introduced=33
+    vkCmdResolveImage;
+    vkCmdSetBlendConstants;
+    vkCmdSetCullMode; #introduced=33
+    vkCmdSetDepthBias;
+    vkCmdSetDepthBiasEnable; #introduced=33
+    vkCmdSetDepthBounds;
+    vkCmdSetDepthBoundsTestEnable; #introduced=33
+    vkCmdSetDepthCompareOp; #introduced=33
+    vkCmdSetDepthTestEnable; #introduced=33
+    vkCmdSetDepthWriteEnable; #introduced=33
+    vkCmdSetDeviceMask; # introduced=28
+    vkCmdSetEvent2; #introduced=33
+    vkCmdSetEvent;
+    vkCmdSetFrontFace; #introduced=33
+    vkCmdSetLineStipple; #introduced=36
+    vkCmdSetLineWidth;
+    vkCmdSetPrimitiveRestartEnable; #introduced=33
+    vkCmdSetPrimitiveTopology; #introduced=33
+    vkCmdSetRasterizerDiscardEnable; #introduced=33
+    vkCmdSetRenderingAttachmentLocations; #introduced=36
+    vkCmdSetRenderingInputAttachmentIndices; #introduced=36
+    vkCmdSetScissor;
+    vkCmdSetScissorWithCount; #introduced=33
+    vkCmdSetStencilCompareMask;
+    vkCmdSetStencilOp; #introduced=33
+    vkCmdSetStencilReference;
+    vkCmdSetStencilTestEnable; #introduced=33
+    vkCmdSetStencilWriteMask;
+    vkCmdSetViewport;
+    vkCmdSetViewportWithCount; #introduced=33
+    vkCmdUpdateBuffer;
+    vkCmdWaitEvents2; #introduced=33
+    vkCmdWaitEvents;
+    vkCmdWriteTimestamp2; #introduced=33
+    vkCmdWriteTimestamp;
+    vkCopyImageToMemory; #introduced=36
+    vkCopyMemoryToImage; #introduced=36
+    vkCreateAndroidSurfaceKHR;
+    vkCreateBuffer;
+    vkCreateBufferView;
+    vkCreateCommandPool;
+    vkCreateComputePipelines;
+    vkCreateDescriptorPool;
+    vkCreateDescriptorSetLayout;
+    vkCreateDescriptorUpdateTemplate; # introduced=28
+    vkCreateDevice;
+    vkCreateEvent;
+    vkCreateFence;
+    vkCreateFramebuffer;
+    vkCreateGraphicsPipelines;
+    vkCreateImage;
+    vkCreateImageView;
+    vkCreateInstance;
+    vkCreatePipelineCache;
+    vkCreatePipelineLayout;
+    vkCreatePrivateDataSlot; #introduced=33
+    vkCreateQueryPool;
+    vkCreateRenderPass2; # introduced=31
+    vkCreateRenderPass;
+    vkCreateSampler;
+    vkCreateSamplerYcbcrConversion; # introduced=28
+    vkCreateSemaphore;
+    vkCreateShaderModule;
+    vkCreateSwapchainKHR;
+    vkDestroyBuffer;
+    vkDestroyBufferView;
+    vkDestroyCommandPool;
+    vkDestroyDescriptorPool;
+    vkDestroyDescriptorSetLayout;
+    vkDestroyDescriptorUpdateTemplate; # introduced=28
+    vkDestroyDevice;
+    vkDestroyEvent;
+    vkDestroyFence;
+    vkDestroyFramebuffer;
+    vkDestroyImage;
+    vkDestroyImageView;
+    vkDestroyInstance;
+    vkDestroyPipeline;
+    vkDestroyPipelineCache;
+    vkDestroyPipelineLayout;
+    vkDestroyPrivateDataSlot; #introduced=33
+    vkDestroyQueryPool;
+    vkDestroyRenderPass;
+    vkDestroySampler;
+    vkDestroySamplerYcbcrConversion; # introduced=28
+    vkDestroySemaphore;
+    vkDestroyShaderModule;
+    vkDestroySurfaceKHR;
+    vkDestroySwapchainKHR;
+    vkDeviceWaitIdle;
+    vkEndCommandBuffer;
+    vkEnumerateDeviceExtensionProperties;
+    vkEnumerateDeviceLayerProperties;
+    vkEnumerateInstanceExtensionProperties;
+    vkEnumerateInstanceLayerProperties;
+    vkEnumerateInstanceVersion; # introduced=28
+    vkEnumeratePhysicalDeviceGroups; # introduced=28
+    vkEnumeratePhysicalDevices;
+    vkFlushMappedMemoryRanges;
+    vkFreeCommandBuffers;
+    vkFreeDescriptorSets;
+    vkFreeMemory;
+    vkGetAndroidHardwareBufferPropertiesANDROID; # introduced=28
+    vkGetBufferDeviceAddress; # introduced=31
+    vkGetBufferMemoryRequirements2; # introduced=28
+    vkGetBufferMemoryRequirements;
+    vkGetBufferOpaqueCaptureAddress; # introduced=31
+    vkGetDescriptorSetLayoutSupport; # introduced=28
+    vkGetDeviceBufferMemoryRequirements; #introduced=33
+    vkGetDeviceGroupPeerMemoryFeatures; # introduced=28
+    vkGetDeviceGroupPresentCapabilitiesKHR; # introduced=28
+    vkGetDeviceGroupSurfacePresentModesKHR; # introduced=28
+    vkGetDeviceImageMemoryRequirements; #introduced=33
+    vkGetDeviceImageSparseMemoryRequirements; #introduced=33
+    vkGetDeviceImageSubresourceLayout; #introduced=36
+    vkGetDeviceMemoryCommitment;
+    vkGetDeviceMemoryOpaqueCaptureAddress; # introduced=31
+    vkGetDeviceProcAddr;
+    vkGetDeviceQueue2; # introduced=28
+    vkGetDeviceQueue;
+    vkGetEventStatus;
+    vkGetFenceStatus;
+    vkGetImageMemoryRequirements2; # introduced=28
+    vkGetImageMemoryRequirements;
+    vkGetImageSparseMemoryRequirements2; # introduced=28
+    vkGetImageSparseMemoryRequirements;
+    vkGetImageSubresourceLayout2; #introduced=36
+    vkGetImageSubresourceLayout2EXT; # introduced=UpsideDownCake
+    vkGetImageSubresourceLayout;
+    vkGetInstanceProcAddr;
+    vkGetMemoryAndroidHardwareBufferANDROID; # introduced=28
+    vkGetPhysicalDeviceExternalBufferProperties; # introduced=28
+    vkGetPhysicalDeviceExternalFenceProperties; # introduced=28
+    vkGetPhysicalDeviceExternalSemaphoreProperties; # introduced=28
+    vkGetPhysicalDeviceFeatures2; # introduced=28
+    vkGetPhysicalDeviceFeatures;
+    vkGetPhysicalDeviceFormatProperties2; # introduced=28
+    vkGetPhysicalDeviceFormatProperties;
+    vkGetPhysicalDeviceImageFormatProperties2; # introduced=28
+    vkGetPhysicalDeviceImageFormatProperties;
+    vkGetPhysicalDeviceMemoryProperties2; # introduced=28
+    vkGetPhysicalDeviceMemoryProperties;
+    vkGetPhysicalDevicePresentRectanglesKHR; # introduced=28
+    vkGetPhysicalDeviceProperties2; # introduced=28
+    vkGetPhysicalDeviceProperties;
+    vkGetPhysicalDeviceQueueFamilyProperties2; # introduced=28
+    vkGetPhysicalDeviceQueueFamilyProperties;
+    vkGetPhysicalDeviceSparseImageFormatProperties2; # introduced=28
+    vkGetPhysicalDeviceSparseImageFormatProperties;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
+    vkGetPhysicalDeviceSurfaceFormatsKHR;
+    vkGetPhysicalDeviceSurfacePresentModesKHR;
+    vkGetPhysicalDeviceSurfaceSupportKHR;
+    vkGetPhysicalDeviceToolProperties; #introduced=33
+    vkGetPipelineCacheData;
+    vkGetPrivateData; #introduced=33
+    vkGetQueryPoolResults;
+    vkGetRenderAreaGranularity;
+    vkGetRenderingAreaGranularity; #introduced=36
+    vkGetSemaphoreCounterValue; # introduced=31
+    vkGetSwapchainImagesKHR;
+    vkInvalidateMappedMemoryRanges;
+    vkMapMemory2; #introduced=36
+    vkMapMemory;
+    vkMergePipelineCaches;
+    vkQueueBindSparse;
+    vkQueuePresentKHR;
+    vkQueueSubmit2; #introduced=33
+    vkQueueSubmit;
+    vkQueueWaitIdle;
+    vkResetCommandBuffer;
+    vkResetCommandPool;
+    vkResetDescriptorPool;
+    vkResetEvent;
+    vkResetFences;
+    vkResetQueryPool; # introduced=31
+    vkSetEvent;
+    vkSetPrivateData; # introduced=33
+    vkSignalSemaphore; # introduced=31
+    vkTransitionImageLayout; #introduced=36
+    vkTrimCommandPool; # introduced=28
+    vkUnmapMemory2; #introduced=36
+    vkUnmapMemory;
+    vkUpdateDescriptorSetWithTemplate; # introduced=28
+    vkUpdateDescriptorSets;
+    vkWaitForFences;
+    vkWaitSemaphores; # introduced=31
+  local:
+    *;
+};

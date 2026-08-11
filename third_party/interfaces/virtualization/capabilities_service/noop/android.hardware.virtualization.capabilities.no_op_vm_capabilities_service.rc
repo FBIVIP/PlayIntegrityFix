@@ -1,0 +1,6 @@
+service vendor.vm_capabilities_service /vendor/bin/hw/android.hardware.virtualization.capabilities.capabilities_service-noop
+  interface aidl android.hardware.virtualization.capabilities.IVmCapabilitiesService/noop
+  class hal
+  disabled
+  user nobody
+  group nobody

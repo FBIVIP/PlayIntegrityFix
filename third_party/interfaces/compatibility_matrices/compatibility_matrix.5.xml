@@ -1,0 +1,7 @@
+<compatibility-matrix version="1.0" type="framework" level="5">
+  <!--
+    Android R FCM has been deprecated, but this file is kept
+    to help manage the android11-5.4 kernel config requirements as that
+    kernel version is not being deprecated with the R FCM.
+    -->
+</compatibility-matrix>

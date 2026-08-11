@@ -1,0 +1,201 @@
+package {
+    default_team: "trendy_team_biometrics_framework",
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "hardware_interfaces_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["hardware_interfaces_license"],
+}
+
+filegroup {
+    name: "face-virtual.rc",
+    srcs: ["face-virtual.rc"],
+}
+
+cc_library_static {
+    name: "android.hardware.biometrics.face-service.lib",
+    vendor_available: true,
+
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+        "libnativewindow",
+    ],
+    srcs: [
+        "FakeLockoutTracker.cpp",
+        "Face.cpp",
+        "FakeFaceEngine.cpp",
+        "Session.cpp",
+        "FaceConfig.cpp",
+        "VirtualHal.cpp",
+        "main.cpp",
+    ],
+    include_dirs: [
+        "frameworks/native/aidl/gui",
+    ],
+    stl: "c++_static",
+    whole_static_libs: [
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.biometrics.common.config",
+        "android.hardware.biometrics.common.thread",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.face.virtualhal-ndk",
+        "android.hardware.biometrics.face-V4-ndk",
+        "android.hardware.common-V2-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "libandroid.hardware.biometrics.face.VirtualProps",
+        "libbase",
+    ],
+    apex_available: [
+        "com.android.hardware.biometrics.face.virtual",
+        "//apex_available:platform",
+    ],
+}
+
+cc_binary {
+    name: "android.hardware.biometrics.face-service.example",
+    system_ext_specific: true,
+    relative_install_path: "hw",
+
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+        "libnativewindow",
+    ],
+    whole_static_libs: [
+        "android.hardware.biometrics.face-service.lib",
+    ],
+    installable: false, // install APEX instead
+    apex_available: [
+        "com.android.hardware.biometrics.face.virtual",
+        "//apex_available:platform",
+    ],
+}
+
+cc_binary {
+    name: "android.hardware.biometrics.face-service.default",
+    vendor: true,
+    relative_install_path: "hw",
+    init_rc: ["face-default.rc"],
+    vintf_fragment_modules: ["android.hardware.biometrics.face-service.default.vintf"],
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+        "libnativewindow",
+    ],
+    whole_static_libs: [
+        "android.hardware.biometrics.face-service.lib",
+    ],
+}
+
+vintf_fragment {
+    name: "android.hardware.biometrics.face-service.default.vintf",
+    src: "face-default.xml",
+    vendor: true,
+}
+
+sysprop_library {
+    name: "android.hardware.biometrics.face.VirtualProps",
+    srcs: ["face.sysprop"],
+    property_owner: "Platform",
+    vendor_available: true,
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.hardware.biometrics.face.virtual",
+    ],
+}
+
+cc_test {
+    name: "android.hardware.biometrics.face.FakeFaceEngineTest",
+    srcs: [
+        "tests/FakeFaceEngineTest.cpp",
+        "FakeFaceEngine.cpp",
+        "FakeLockoutTracker.cpp",
+        "FaceConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "libnativewindow",
+    ],
+    include_dirs: [
+        "frameworks/native/aidl/gui",
+    ],
+    static_libs: [
+        "libandroid.hardware.biometrics.face.VirtualProps",
+        "android.hardware.biometrics.face-V4-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.config",
+        "android.hardware.biometrics.common.thread",
+    ],
+    vendor: true,
+    test_suites: ["general-tests"],
+    require_root: true,
+}
+
+cc_test {
+    name: "android.hardware.biometrics.face.FakeLockoutTrackerTest",
+    srcs: [
+        "tests/FakeLockoutTrackerTest.cpp",
+        "FakeLockoutTracker.cpp",
+        "FaceConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "libnativewindow",
+    ],
+    include_dirs: [
+        "frameworks/native/aidl/gui",
+    ],
+    static_libs: [
+        "libandroid.hardware.biometrics.face.VirtualProps",
+        "android.hardware.biometrics.face-V4-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.config",
+        "android.hardware.biometrics.common.thread",
+    ],
+    vendor: true,
+    test_suites: ["general-tests"],
+    require_root: true,
+}
+
+cc_test {
+    name: "android.hardware.biometrics.face.VirtualHalTest",
+    srcs: [
+        "tests/VirtualHalTest.cpp",
+        "FakeLockoutTracker.cpp",
+        "Face.cpp",
+        "FakeFaceEngine.cpp",
+        "Session.cpp",
+        "VirtualHal.cpp",
+        "FaceConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+        "libnativewindow",
+        "liblog",
+    ],
+    include_dirs: [
+        "frameworks/native/aidl/gui",
+    ],
+    static_libs: [
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.biometrics.common.config",
+        "android.hardware.biometrics.common.thread",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.face-V4-ndk",
+        "android.hardware.common-V2-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "libandroid.hardware.biometrics.face.VirtualProps",
+        "android.hardware.biometrics.face.virtualhal-ndk",
+    ],
+    test_suites: ["general-tests"],
+    require_root: true,
+}

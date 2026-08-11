@@ -1,0 +1,196 @@
+/*
+ * Copyright 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// #define LOG_NDEBUG 0
+#undef LOG_TAG
+#define LOG_TAG "RenderEngine"
+#define ATRACE_TAG ATRACE_TAG_GRAPHICS
+
+#include "SkiaVkRenderEngine.h"
+
+#include "GaneshVkRenderEngine.h"
+#include "compat/SkiaGpuContext.h"
+
+#include <include/gpu/ganesh/GrBackendSemaphore.h>
+#include <include/gpu/ganesh/GrContextOptions.h>
+#include <include/gpu/ganesh/GrDirectContext.h>
+#include <include/gpu/ganesh/vk/GrVkBackendSemaphore.h>
+#include <include/gpu/ganesh/vk/GrVkDirectContext.h>
+#include <include/gpu/ganesh/vk/GrVkTypes.h>
+
+#include <android-base/stringprintf.h>
+#include <common/trace.h>
+#include <sync/sync.h>
+
+#include <memory>
+#include <string>
+
+#include <vulkan/vulkan.h>
+#include "log/log_main.h"
+
+namespace android {
+namespace renderengine {
+
+static skia::VulkanInterface sVulkanInterface;
+static skia::VulkanInterface sProtectedContentVulkanInterface;
+
+static void sSetupVulkanInterface() {
+    if (!sVulkanInterface.isInitialized()) {
+        sVulkanInterface.init(false /* no protected content */);
+        // We will have to abort if non-protected VkDevice creation fails (then nothing works).
+        LOG_ALWAYS_FATAL_IF(!sVulkanInterface.isInitialized(),
+                            "Could not initialize Vulkan RenderEngine!");
+    }
+    if (!sProtectedContentVulkanInterface.isInitialized()) {
+        sProtectedContentVulkanInterface.init(true /* protected content */);
+        if (!sProtectedContentVulkanInterface.isInitialized()) {
+            ALOGE("Could not initialize protected content Vulkan RenderEngine.");
+        }
+    }
+}
+
+bool RenderEngine::canSupport(GraphicsApi graphicsApi) {
+    switch (graphicsApi) {
+        case GraphicsApi::GL:
+            return true;
+        case GraphicsApi::VK: {
+            // Static local variables are initialized once, on first invocation of the function.
+            static const bool canSupportVulkan = []() {
+                if (!sVulkanInterface.isInitialized()) {
+                    sVulkanInterface.init(false /* no protected content */);
+                    ALOGD("%s: initialized == %s.", __func__,
+                          sVulkanInterface.isInitialized() ? "true" : "false");
+                    if (!sVulkanInterface.isInitialized()) {
+                        sVulkanInterface.teardown();
+                        return false;
+                    }
+                }
+                return true;
+            }();
+            return canSupportVulkan;
+        }
+    }
+}
+
+void RenderEngine::teardown(GraphicsApi graphicsApi) {
+    switch (graphicsApi) {
+        case GraphicsApi::GL:
+            break;
+        case GraphicsApi::VK: {
+            if (sVulkanInterface.isInitialized()) {
+                sVulkanInterface.teardown();
+                ALOGD("Tearing down the unprotected VulkanInterface.");
+            }
+            if (sProtectedContentVulkanInterface.isInitialized()) {
+                sProtectedContentVulkanInterface.teardown();
+                ALOGD("Tearing down the protected VulkanInterface.");
+            }
+            break;
+        }
+    }
+}
+
+namespace skia {
+
+using base::StringAppendF;
+
+SkiaVkRenderEngine::SkiaVkRenderEngine(const RenderEngineCreationArgs& args)
+      : SkiaRenderEngine(args.threaded, static_cast<PixelFormat>(args.pixelFormat),
+                         args.blurAlgorithm) {}
+
+SkiaVkRenderEngine::~SkiaVkRenderEngine() {
+    finishRenderingAndAbandonContexts();
+    // Teardown VulkanInterfaces after Skia contexts have been abandoned
+    teardown(GraphicsApi::VK);
+}
+
+SkiaRenderEngine::Contexts SkiaVkRenderEngine::createContexts() {
+    sSetupVulkanInterface();
+    // More work would need to be done in order to have multiple RenderEngine instances. In
+    // particular, they would not be able to share the same VulkanInterface(s).
+    LOG_ALWAYS_FATAL_IF(!sVulkanInterface.takeOwnership(),
+                        "SkiaVkRenderEngine couldn't take ownership of existing unprotected "
+                        "VulkanInterface! Only one SkiaVkRenderEngine instance may exist at a "
+                        "time.");
+    if (sProtectedContentVulkanInterface.isInitialized()) {
+        // takeOwnership fails on an uninitialized VulkanInterface, but protected content support is
+        // optional.
+        LOG_ALWAYS_FATAL_IF(!sProtectedContentVulkanInterface.takeOwnership(),
+                            "SkiaVkRenderEngine couldn't take ownership of existing protected "
+                            "VulkanInterface! Only one SkiaVkRenderEngine instance may exist at a "
+                            "time.");
+    }
+
+    SkiaRenderEngine::Contexts contexts;
+    contexts.first = createContext(sVulkanInterface);
+    if (supportsProtectedContentImpl()) {
+        contexts.second = createContext(sProtectedContentVulkanInterface);
+    }
+
+    return contexts;
+}
+
+bool SkiaVkRenderEngine::supportsProtectedContentImpl() const {
+    return sProtectedContentVulkanInterface.isInitialized();
+}
+
+bool SkiaVkRenderEngine::useProtectedContextImpl(GrProtected) {
+    return true;
+}
+
+VulkanInterface& SkiaVkRenderEngine::getVulkanInterface(bool protectedContext) {
+    if (protectedContext) {
+        return sProtectedContentVulkanInterface;
+    }
+    return sVulkanInterface;
+}
+
+int SkiaVkRenderEngine::getContextPriority() {
+    // EGL_CONTEXT_PRIORITY_REALTIME_NV
+    constexpr int kRealtimePriority = 0x3357;
+    if (getVulkanInterface(isProtected()).isRealtimePriority()) {
+        return kRealtimePriority;
+    } else {
+        return 0;
+    }
+}
+
+void SkiaVkRenderEngine::appendBackendSpecificInfoToDump(std::string& result) {
+    // Subclasses will prepend a backend-specific name / section header
+    StringAppendF(&result, "Vulkan device initialized: %d\n", sVulkanInterface.isInitialized());
+    StringAppendF(&result, "Vulkan protected device initialized: %d\n",
+                  sProtectedContentVulkanInterface.isInitialized());
+
+    if (!sVulkanInterface.isInitialized()) {
+        return;
+    }
+
+    StringAppendF(&result, "Instance extensions: [\n");
+    for (const auto& name : sVulkanInterface.getInstanceExtensionNames()) {
+        StringAppendF(&result, "  %s\n", name.c_str());
+    }
+    StringAppendF(&result, "]\n");
+
+    StringAppendF(&result, "Device extensions: [\n");
+    for (const auto& name : sVulkanInterface.getDeviceExtensionNames()) {
+        StringAppendF(&result, "  %s\n", name.c_str());
+    }
+    StringAppendF(&result, "]\n");
+}
+
+} // namespace skia
+} // namespace renderengine
+} // namespace android

@@ -1,0 +1,269 @@
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// TODO(b/31559095): bionic on host should define this
+package {
+    default_applicable_licenses: ["frameworks_native_libs_binder_ndk_license"],
+}
+
+// Added automatically by a large-scale-change
+// See: http://go/android-license-faq
+license {
+    name: "frameworks_native_libs_binder_ndk_license",
+    visibility: [":__subpackages__"],
+    license_kinds: [
+        "SPDX-license-identifier-Apache-2.0",
+    ],
+    license_text: [
+        "NOTICE",
+    ],
+}
+
+cc_defaults {
+    name: "libbinder_ndk_common_defaults",
+    host_supported: true,
+    recovery_available: true,
+
+    export_include_dirs: [
+        "include_cpp",
+        "include_ndk",
+        "include_platform",
+    ],
+
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Wextra-semi",
+        "-Werror",
+    ],
+
+    srcs: [
+        "ibinder.cpp",
+        "libbinder.cpp",
+        "parcel.cpp",
+        "stability.cpp",
+        "status.cpp",
+    ],
+}
+
+cc_library_host_shared {
+    name: "libbinder_ndk_sdk",
+
+    defaults: [
+        "libbinder_ndk_common_defaults",
+        "binder_sdk_defaults",
+    ],
+    cmake_snapshot_supported: true,
+
+    shared_libs: [
+        "libbinder_sdk",
+        "libutils_binder_sdk",
+    ],
+}
+
+cc_library {
+    name: "libbinder_ndk",
+
+    defaults: ["libbinder_ndk_common_defaults"],
+    cmake_snapshot_supported: false,
+
+    llndk: {
+        symbol_file: "libbinder_ndk.map.txt",
+    },
+
+    cflags: [
+        "-DBINDER_WITH_KERNEL_IPC",
+    ],
+
+    srcs: [
+        "ibinder_jni.cpp",
+        "parcel_jni.cpp",
+        "persistable_bundle.cpp",
+        "process.cpp",
+        "service_manager.cpp",
+        "binder_rpc.cpp",
+    ],
+
+    static_libs: [
+        "libandroid_runtime_lazy",
+        "libbase",
+    ],
+
+    shared_libs: [
+        "libbinder",
+        "liblog",
+        "libutils",
+    ],
+
+    header_libs: [
+        "jni_headers",
+    ],
+    export_header_lib_headers: [
+        "jni_headers",
+    ],
+
+    target: {
+        android: {
+            // Only one copy of this library on an Android device
+            static: {
+                enabled: false,
+            },
+        },
+        linux: {
+            version_script: "libbinder_ndk.map.txt",
+        },
+        darwin: {
+            enabled: false,
+        },
+    },
+    stubs: {
+        symbol_file: "libbinder_ndk.map.txt",
+        versions: [
+            "29",
+            "30",
+        ],
+    },
+    sanitize: {
+        misc_undefined: ["integer"],
+    },
+    tidy: true,
+    tidy_flags: [
+        // Only check our headers
+        "--header-filter=^.*frameworks/native/libs/binder/.*.h$",
+    ],
+    tidy_checks_as_errors: [
+        // Explicitly list the checks that should not occur in this module.
+        "abseil-*",
+        "android-*",
+        "bugprone-*",
+        "-bugprone-branch-clone", // b/155034972
+        "cert-*",
+        "clang-analyzer-*",
+        "-clang-analyzer-core.CallAndMessage",
+        "-clang-analyzer-core.uninitialized.Assign",
+        "-clang-analyzer-unix.Malloc",
+        "-clang-analyzer-deadcode.DeadStores",
+        "-clang-analyzer-optin.cplusplus.UninitializedObject",
+        "google-*",
+        "-google-readability-*",
+        "-google-runtime-references",
+        "misc-*",
+        "-misc-no-recursion",
+        "-misc-non-private-member-variables-in-classes",
+        "-misc-redundant-expression",
+        "-misc-unused-parameters",
+        "-misc-unused-using-decls",
+        "performance*",
+        "portability*",
+    ],
+    afdo: true,
+}
+
+cc_library {
+    name: "libbinder_ndk_on_trusty_mock",
+    defaults: [
+        "trusty_mock_defaults",
+    ],
+
+    export_include_dirs: [
+        "include_cpp",
+        "include_ndk",
+        "include_platform",
+    ],
+
+    srcs: [
+        "ibinder.cpp",
+        "libbinder.cpp",
+        "parcel.cpp",
+        "stability.cpp",
+        "status.cpp",
+    ],
+
+    shared_libs: [
+        "libbinder_on_trusty_mock",
+    ],
+
+    header_libs: [
+        "libbinder_trusty_ndk_headers",
+    ],
+    export_header_lib_headers: [
+        "libbinder_trusty_ndk_headers",
+    ],
+
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+    ],
+
+    visibility: ["//frameworks/native/libs/binder:__subpackages__"],
+}
+
+cc_library_headers {
+    name: "libbinder_headers_platform_shared",
+    export_include_dirs: ["include_cpp"],
+    vendor_available: true,
+    recovery_available: true,
+    host_supported: true,
+    // TODO(b/153609531): remove when no longer needed.
+    native_bridge_supported: true,
+    cmake_snapshot_supported: true,
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+        "com.android.media",
+        "com.android.media.swcodec",
+    ],
+    min_sdk_version: "29",
+}
+
+// TODO: if you try to export libbinder_headers_platform_shared from libbinder_ndk.ndk, it will
+// not select the NDK variant of libbinder_headers_platform_shared and instead, it will error
+// that the NDK can't depend on glibc C++.
+cc_library_headers {
+    name: "libbinder_headers_platform_shared_ndk",
+    export_include_dirs: ["include_cpp"],
+    sdk_version: "29",
+    min_sdk_version: "29",
+    visibility: [":__subpackages__"],
+}
+
+ndk_headers {
+    name: "libbinder_ndk_headers",
+    from: "include_ndk/android",
+    to: "android",
+    srcs: [
+        "include_ndk/android/*.h",
+    ],
+    license: "NOTICE",
+}
+
+// include_cpp are packaged in development/build/sdk.atree with the AIDL compiler
+
+ndk_library {
+    name: "libbinder_ndk",
+    symbol_file: "libbinder_ndk.map.txt",
+    first_version: "29",
+    export_header_libs: [
+        // used to be part of the NDK, platform things depend on it
+        "libbinder_headers_platform_shared_ndk",
+    ],
+}

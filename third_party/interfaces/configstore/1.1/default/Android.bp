@@ -1,0 +1,142 @@
+// Copyright (C) 2024 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//###############################################################################
+package {
+    // See: http://go/android-license-faq
+    default_applicable_licenses: [
+        "hardware_interfaces_license",
+    ],
+}
+
+soong_config_module_type {
+    name: "surfaceflinger_cc_defaults_type",
+    module_type: "cc_defaults",
+    config_namespace: "surfaceflinger",
+    value_variables: [
+        "vsync_event_phase_offset_ns",
+        "sf_vsync_event_phase_offset_ns",
+        "present_time_offset_from_vsync_ns",
+        "max_virtual_displat_dimension",
+        "num_framebuffer_surface_buffers",
+        "sf_primary_display_orientation",
+    ],
+    bool_variables: [
+        "use_context_priority",
+        "has_wide_color_display",
+        "has_hdr_display",
+        "force_hwc_copy_for_virtual_displays",
+        "running_without_sync_framework",
+        "use_vr_flinger",
+        "sf_start_graphics_allocator_service",
+    ],
+    properties: [
+        "cflags",
+    ],
+}
+
+surfaceflinger_cc_defaults_type {
+    name: "surfaceflinger_cc_defaults",
+    srcs: [
+        "SurfaceFlingerConfigs.cpp",
+    ],
+    soong_config_variables: {
+        vsync_event_phase_offset_ns: {
+            cflags: ["-DVSYNC_EVENT_PHASE_OFFSET_NS=%s"],
+        },
+        sf_vsync_event_phase_offset_ns: {
+            cflags: ["-DSF_VSYNC_EVENT_PHASE_OFFSET_NS=%s"],
+        },
+        present_time_offset_from_vsync_ns: {
+            cflags: ["-DPRESENT_TIME_OFFSET_FROM_VSYNC_NS=%s"],
+        },
+        max_virtual_displat_dimension: {
+            cflags: ["-DMAX_VIRTUAL_DISPLAY_DIMENSION=%s"],
+        },
+        num_framebuffer_surface_buffers: {
+            cflags: ["-DNUM_FRAMEBUFFER_SURFACE_BUFFERS=%s"],
+        },
+        sf_primary_display_orientation: {
+            cflags: ["-DPRIMARY_DISPLAY_ORIENTATION=%s"],
+        },
+        use_context_priority: {
+            cflags: ["-DUSE_CONTEXT_PRIORITY=1"],
+        },
+        has_wide_color_display: {
+            cflags: ["-DHAS_WIDE_COLOR_DISPLAY"],
+        },
+        has_hdr_display: {
+            cflags: ["-DHAS_HDR_DISPLAY"],
+        },
+        force_hwc_copy_for_virtual_displays: {
+            cflags: ["-DFORCE_HWC_COPY_FOR_VIRTUAL_DISPLAYS"],
+        },
+        running_without_sync_framework: {
+            cflags: ["-DRUNNING_WITHOUT_SYNC_FRAMEWORK"],
+        },
+        use_vr_flinger: {
+            cflags: ["-DUSE_VR_FLINGER"],
+        },
+        sf_start_graphics_allocator_service: {
+            cflags: ["-DSTART_GRAPHICS_ALLOCATOR_SERVICE"],
+        },
+    },
+}
+
+cc_binary {
+    name: "android.hardware.configstore@1.1-service",
+    srcs: ["service.cpp"],
+    vendor: true,
+    relative_install_path: "hw",
+    init_rc: ["android.hardware.configstore@1.1-service.rc"],
+    shared_libs: [
+        "libhidlbase",
+        "libbase",
+        "libhwminijail",
+        "liblog",
+        "libutils",
+        "android.hardware.configstore@1.0",
+        "android.hardware.configstore@1.1",
+    ],
+    defaults: [
+        "surfaceflinger_cc_defaults",
+    ],
+    required: select((arch(), soong_config_variable("ANDROID", "GCOV_COVERAGE")), {
+        ("arm64", false): ["configstore@1.1.policy"],
+        (default, default): [],
+    }),
+}
+
+// Only build for arm64
+prebuilt_etc {
+    name: "configstore@1.1.policy",
+    relative_install_path: "seccomp_policy",
+    proprietary: true,
+    enabled: false,
+    arch: {
+        arm64: {
+            src: "seccomp_policy/configstore@1.1-arm64.policy",
+            enabled: true,
+        },
+    },
+}
+
+// disable configstore
+cc_binary {
+    name: "disable_configstore",
+    installable: false,
+    srcs: ["disable_configstore.cpp"],
+    overrides: ["android.hardware.configstore@1.1-service"],
+    vendor: true,
+}

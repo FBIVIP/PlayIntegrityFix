@@ -1,0 +1,8 @@
+service face-virtual /apex/com.android.hardware.biometrics.face.virtual/bin/hw/android.hardware.biometrics.face-service.example virtual
+    class hal
+    user nobody
+    group nobody
+    interface aidl android.hardware.biometrics.face.virtualhal.IVirtualHal/virtual
+    oneshot
+    disabled
+

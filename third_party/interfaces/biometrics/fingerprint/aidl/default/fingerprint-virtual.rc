@@ -1,0 +1,7 @@
+service fingerprint-virtual /apex/com.android.hardware.biometrics.fingerprint.virtual/bin/hw/android.hardware.biometrics.fingerprint-service.example virtual
+    class hal
+    user nobody
+    group nobody
+    interface aidl android.hardware.biometrics.fingerprint.virtualhal.IVirtualHal/virtual
+    oneshot
+    disabled

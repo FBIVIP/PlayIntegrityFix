@@ -1,0 +1,290 @@
+package {
+    default_team: "trendy_team_biometrics_framework",
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "hardware_interfaces_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["hardware_interfaces_license"],
+}
+
+cc_library_static {
+    name: "android.hardware.biometrics.fingerprint-service.lib",
+    vendor_available: true,
+    local_include_dirs: ["include"],
+    srcs: [
+        "FakeLockoutTracker.cpp",
+        "FakeFingerprintEngine.cpp",
+        "FakeFingerprintEngineRear.cpp",
+        "FakeFingerprintEngineUdfps.cpp",
+        "FakeFingerprintEngineSide.cpp",
+        "Fingerprint.cpp",
+        "Session.cpp",
+        "FingerprintConfig.cpp",
+        "VirtualHal.cpp",
+        "main.cpp",
+    ],
+    stl: "c++_static",
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+    ],
+    whole_static_libs: [
+        "libandroid.hardware.biometrics.fingerprint.VirtualProps",
+        "libbase",
+        "android.hardware.biometrics.fingerprint.virtualhal-ndk",
+        "android.hardware.biometrics.fingerprint-V4-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.biometrics.common.thread",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.config",
+        "android.hardware.keymaster-V4-ndk",
+    ],
+    product_variables: {
+        debuggable: {
+            cflags: ["-DFPS_DEBUGGABLE"],
+        },
+    },
+    apex_available: [
+        "com.android.hardware.biometrics.fingerprint.virtual",
+        "//apex_available:platform",
+    ],
+}
+
+cc_binary {
+    name: "android.hardware.biometrics.fingerprint-service.example",
+    system_ext_specific: true,
+    relative_install_path: "hw",
+    local_include_dirs: ["include"],
+    srcs: [
+    ],
+    stl: "c++_static",
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+    ],
+    whole_static_libs: [
+        "android.hardware.biometrics.fingerprint-service.lib",
+    ],
+    installable: false, // install APEX instead
+    product_variables: {
+        debuggable: {
+            cflags: ["-DFPS_DEBUGGABLE"],
+        },
+    },
+    apex_available: [
+        "com.android.hardware.biometrics.fingerprint.virtual",
+    ],
+}
+
+cc_binary {
+    name: "android.hardware.biometrics.fingerprint-service.default",
+    //system_ext_specific: true,
+    vendor: true,
+    relative_install_path: "hw",
+    init_rc: ["fingerprint-default.rc"],
+    vintf_fragment_modules: ["android.hardware.biometrics.fingerprint-service.default.vintf"],
+    local_include_dirs: ["include"],
+    srcs: [
+    ],
+    stl: "c++_static",
+    shared_libs: [
+        "libbinder_ndk",
+        "liblog",
+    ],
+    whole_static_libs: [
+        "android.hardware.biometrics.fingerprint-service.lib",
+    ],
+    product_variables: {
+        debuggable: {
+            cflags: ["-DFPS_DEBUGGABLE"],
+        },
+    },
+    apex_available: [
+        "//apex_available:platform",
+    ],
+}
+
+vintf_fragment {
+    name: "android.hardware.biometrics.fingerprint-service.default.vintf",
+    src: "fingerprint-default.xml",
+    vendor: true,
+}
+
+cc_test {
+    name: "android.hardware.biometrics.fingerprint.FakeFingerprintEngineTest",
+    local_include_dirs: ["include"],
+    srcs: [
+        "tests/FakeFingerprintEngineTest.cpp",
+        "FakeFingerprintEngine.cpp",
+        "FakeLockoutTracker.cpp",
+        "FingerprintConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+    ],
+    static_libs: [
+        "libandroid.hardware.biometrics.fingerprint.VirtualProps",
+        "android.hardware.biometrics.fingerprint-V4-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.config",
+        "android.hardware.biometrics.common.thread",
+    ],
+    test_suites: ["general-tests"],
+    require_root: true,
+}
+
+cc_test {
+    name: "android.hardware.biometrics.fingerprint.FakeFingerprintEngineUdfpsTest",
+    local_include_dirs: ["include"],
+    srcs: [
+        "tests/FakeFingerprintEngineUdfpsTest.cpp",
+        "FakeFingerprintEngineUdfps.cpp",
+        "FakeFingerprintEngine.cpp",
+        "FakeLockoutTracker.cpp",
+        "FingerprintConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+    ],
+    static_libs: [
+        "libandroid.hardware.biometrics.fingerprint.VirtualProps",
+        "android.hardware.biometrics.fingerprint-V4-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.config",
+        "android.hardware.biometrics.common.thread",
+    ],
+    test_suites: ["general-tests"],
+    require_root: true,
+}
+
+cc_test {
+    name: "android.hardware.biometrics.fingerprint.FakeLockoutTrackerTest",
+    local_include_dirs: ["include"],
+    srcs: [
+        "tests/FakeLockoutTrackerTest.cpp",
+        "FakeLockoutTracker.cpp",
+        "FingerprintConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+    ],
+    static_libs: [
+        "libandroid.hardware.biometrics.fingerprint.VirtualProps",
+        "android.hardware.biometrics.fingerprint-V4-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.thread",
+        "android.hardware.biometrics.common.config",
+    ],
+    test_suites: ["general-tests"],
+    require_root: true,
+}
+
+cc_test {
+    name: "android.hardware.biometrics.fingerprint.SessionTest",
+    local_include_dirs: ["include"],
+    srcs: [
+        "tests/SessionTest.cpp",
+        "Session.cpp",
+        "FakeFingerprintEngine.cpp",
+        "FakeLockoutTracker.cpp",
+        "FingerprintConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+    ],
+    static_libs: [
+        "libandroid.hardware.biometrics.fingerprint.VirtualProps",
+        "android.hardware.biometrics.fingerprint-V4-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.thread",
+        "android.hardware.biometrics.common.config",
+    ],
+    test_suites: ["general-tests"],
+    require_root: true,
+}
+
+cc_test {
+    name: "android.hardware.biometrics.fingerprint.VirtualHalTest",
+    local_include_dirs: ["include"],
+    srcs: [
+        "tests/VirtualHalTest.cpp",
+        "Session.cpp",
+        "VirtualHal.cpp",
+        "FakeFingerprintEngineRear.cpp",
+        "FakeFingerprintEngineUdfps.cpp",
+        "FakeFingerprintEngineSide.cpp",
+        "FakeFingerprintEngine.cpp",
+        "FakeLockoutTracker.cpp",
+        "Fingerprint.cpp",
+        "FingerprintConfig.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder_ndk",
+    ],
+    static_libs: [
+        "libandroid.hardware.biometrics.fingerprint.VirtualProps",
+        "android.hardware.biometrics.fingerprint-V4-ndk",
+        "android.hardware.biometrics.fingerprint.virtualhal-ndk",
+        "android.hardware.biometrics.common-V4-ndk",
+        "android.hardware.keymaster-V4-ndk",
+        "android.hardware.biometrics.common.util",
+        "android.hardware.biometrics.common.thread",
+        "android.hardware.biometrics.common.config",
+    ],
+    product_variables: {
+        debuggable: {
+            cflags: ["-DFPS_DEBUGGABLE"],
+        },
+    },
+    test_suites: ["general-tests"],
+    require_root: true,
+}
+
+sysprop_library {
+    name: "android.hardware.biometrics.fingerprint.VirtualProps",
+    srcs: ["fingerprint.sysprop"],
+    property_owner: "Platform",
+    vendor_available: true,
+    apex_available: [
+        "com.android.hardware.biometrics.fingerprint.virtual",
+        "//apex_available:platform",
+    ],
+}
+
+prebuilt_etc {
+    name: "fingerprint-virtual.rc",
+    src: "fingerprint-virtual.rc",
+    installable: false,
+}
+
+apex {
+    name: "com.android.hardware.biometrics.fingerprint.virtual",
+    manifest: "apex_manifest.json",
+    file_contexts: ":com.android.biometrics.virtual.fingerprint-file_contexts",
+    key: "com.android.hardware.key",
+    certificate: ":com.android.hardware.certificate",
+    updatable: false,
+    system_ext_specific: true,
+
+    binaries: [
+        "android.hardware.biometrics.fingerprint-service.example",
+    ],
+    prebuilts: [
+        // init_rc
+        "fingerprint-virtual.rc",
+    ],
+}

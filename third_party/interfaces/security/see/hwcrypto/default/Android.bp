@@ -1,0 +1,143 @@
+// Copyright (C) 2025 The Android Open-Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+cc_library {
+    name: "hwcryptohallib",
+    enabled: false,
+    shared_libs: [
+        "libbase",
+        "liblog",
+        "libbinder",
+        "libbinder_ndk",
+        "libbinder_trusty",
+        "libtrusty",
+        "libutils",
+
+        // AIDL interface deps versions, please refer to below link
+        // https://source.android.com/docs/core/architecture/aidl/stable-aidl#module-naming-rules
+        "android.hardware.security.see.hwcrypto-V1-ndk",
+        "android.hardware.security.see.hwcrypto-V1-cpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+    srcs: ["hwcryptolib.cpp"],
+    proprietary: true,
+    arch: {
+        arm64: {
+            enabled: true,
+        },
+    },
+}
+
+cc_binary {
+    name: "android.hardware.trusty.hwcryptohal-service",
+    enabled: false,
+    relative_install_path: "hw",
+    srcs: [
+        "hwcrypto_delegator.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "liblog",
+        "libbinder",
+        "libbinder_ndk",
+        "libbinder_trusty",
+        "libtrusty",
+        "libutils",
+        "hwcryptohallib",
+
+        // AIDL interface deps versions, please refer to below link
+        // https://source.android.com/docs/core/architecture/aidl/stable-aidl#module-naming-rules
+        "android.hardware.security.see.hwcrypto-V1-ndk",
+        "android.hardware.security.see.hwcrypto-V1-cpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+    proprietary: true,
+    vintf_fragments: ["android.hardware.security.see.hwcrypto-service.trusty.xml"],
+    init_rc: ["android.hardware.security.see.hwcrypto-service.trusty.rc"],
+    arch: {
+        arm64: {
+            enabled: true,
+        },
+    },
+}
+
+cc_fuzz {
+    name: "android.hardware.trusty.hwcryptohal-service_fuzzer",
+    enabled: false,
+    defaults: ["service_fuzzer_defaults"],
+    static_libs: [
+        "android.hardware.security.see.hwcrypto-V1-ndk",
+        "android.hardware.security.see.hwcrypto-V1-cpp",
+        "liblog",
+        "hwcryptohallib",
+    ],
+    shared_libs: [
+        "libbinder_trusty",
+        "libtrusty",
+    ],
+    srcs: ["fuzzer.cpp"],
+    fuzz_config: {
+        cc: [
+            "oarbildo@google.com",
+        ],
+    },
+    arch: {
+        arm64: {
+            enabled: true,
+        },
+    },
+}
+
+cc_test {
+    name: "HwCryptoHalDelegatorTests",
+    enabled: false,
+    require_root: true,
+    srcs: [
+        "delegatorTest.cpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+    ],
+
+    shared_libs: [
+        "libbase",
+        "liblog",
+        "libutils",
+        "libbinder",
+        "libbinder_ndk",
+    ],
+    static_libs: [
+        "android.hardware.security.see.hwcrypto-V1-ndk",
+        "android.hardware.security.see.hwcrypto-V1-cpp",
+        "hwcryptohallib",
+    ],
+
+    arch: {
+        arm64: {
+            enabled: true,
+        },
+    },
+}

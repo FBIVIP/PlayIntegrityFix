@@ -1,0 +1,26 @@
+{
+  "presubmit": [
+    {
+      "name": "SurfaceFlinger_test",
+      "options": [
+        {
+          // TODO(b/305717998): Deflake and re-enable
+          "exclude-filter": "*ChildLayerTest*"
+        }
+      ]
+    },
+    {
+      "name": "CtsGraphicsTestCases",
+      "options": [
+        {
+          "include-filter": "android.graphics.cts.VulkanPreTransformTest"
+        }
+      ]
+    }
+  ],
+  "hwasan-postsubmit": [
+    {
+      "name": "SurfaceFlinger_test"
+    }
+  ]
+}

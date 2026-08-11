@@ -1,0 +1,34 @@
+package {
+    default_team: "trendy_team_virtualization",
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+rust_binary {
+    name: "android.hardware.virtualization.capabilities.capabilities_service-noop",
+    relative_install_path: "hw",
+    vendor: true,
+    installable: true,
+    prefer_rlib: true,
+    rustlibs: [
+        "android.hardware.virtualization.capabilities.capabilities_service-V1-rust",
+        "libanyhow",
+        "libandroid_logger",
+        "libbinder_rs",
+        "liblog_rust",
+    ],
+    srcs: [
+        "src/main.rs",
+    ],
+    init_rc: [
+        "android.hardware.virtualization.capabilities.no_op_vm_capabilities_service.rc",
+    ],
+    vintf_fragment_modules: [
+        "android.hardware.virtualization.capabilities.no_op_vm_capabilities_service.xml",
+    ],
+}
+
+vintf_fragment {
+    name: "android.hardware.virtualization.capabilities.no_op_vm_capabilities_service.xml",
+    src: "android.hardware.virtualization.capabilities.no_op_vm_capabilities_service.xml",
+    vendor: true,
+}

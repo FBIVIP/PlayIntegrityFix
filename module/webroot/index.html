@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Offline by contract: nothing external may ever load. All CSS/JS are local 'self' files. -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' http://127.0.0.1:8790; object-src 'none'; base-uri 'none'">
+<title>TEESimulator</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<!-- Slim top bar: identity on the left, a one-glance health pill on the right.
+     app.js seeds the pill once at boot and the System controller refreshes it. -->
+<header class="topbar">
+  <span class="topbar-title">TEESimulator</span>
+  <span id="health" class="healthpill" role="status" aria-live="polite">
+    <span class="dot"></span>
+    <span class="healthpill-label">checking…</span>
+  </span>
+</header>
+
+<!-- One screen is visible at a time; app.js toggles [hidden] on these mounts. No
+     screen owns navigation chrome — each controller paints its own panel head. -->
+<main id="screens">
+  <section id="tab-config" class="screen" hidden></section>
+  <section id="tab-keyboxes" class="screen" hidden></section>
+  <section id="tab-keys" class="screen" hidden></section>
+  <section id="tab-system" class="screen" hidden></section>
+  <section id="tab-logs" class="screen" hidden></section>
+</main>
+
+<!-- Fixed bottom navigation. Switching destinations mints no history entry (see
+     js/nav.js), so Android Back never cycles these. Icons are inline SVG — nothing
+     external loads. app.js sets aria-current on the active item. -->
+<nav class="bottomnav" aria-label="Sections">
+  <button class="navitem" type="button" data-nav="config">
+    <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="6.5" rx="2"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="2"/></svg>
+    <span class="navlabel">Profiles</span>
+  </button>
+  <button class="navitem" type="button" data-nav="keyboxes">
+    <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
+    <span class="navlabel">Keyboxes</span>
+  </button>
+  <button class="navitem" type="button" data-nav="keys">
+    <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M10.9 12.1 20 3"/><path d="M17 6l2.5 2.5"/><path d="M14.5 8.5 17 11"/></svg>
+    <span class="navlabel">Keys</span>
+  </button>
+  <button class="navitem" type="button" data-nav="system">
+    <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.5 7 5-14 2.5 7h4"/></svg>
+    <span class="navlabel">System</span>
+    <span id="update-badge" class="badge" hidden aria-label="update available"></span>
+  </button>
+  <button class="navitem" type="button" data-nav="logs">
+    <svg class="navicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M13.5 15H17"/></svg>
+    <span class="navlabel">Logs</span>
+  </button>
+</nav>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

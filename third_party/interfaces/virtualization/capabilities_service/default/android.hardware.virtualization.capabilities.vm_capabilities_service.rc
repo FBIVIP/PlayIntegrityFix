@@ -1,0 +1,6 @@
+service vendor.vm_capabilities_service /vendor/bin/hw/android.hardware.virtualization.capabilities.capabilities_service-default
+  interface aidl android.hardware.virtualization.capabilities.IVmCapabilitiesService/default
+  class hal
+  # This HAL needs to talk to a kernel driver, hence it runs as root
+  user root
+  group root

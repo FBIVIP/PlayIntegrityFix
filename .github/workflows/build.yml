@@ -1,131 +1,49 @@
-name: Build
+name: Build Module
 
 on:
   push:
-    branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - '.github/**'
-      - '!.github/workflows/**'
-  pull_request:
-    branches: [ "main" ]
-    paths-ignore:
-      - '**.md'
-      - '.github/**'
-      - '!.github/workflows/**'
+    branches: [ main, master, dev ]
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    outputs:
-      releaseName: ${{ steps.prepareArtifact.outputs.releaseName }}
-      debugName: ${{ steps.prepareArtifact.outputs.debugName }}
-
     steps:
-      - name: Check out
-        uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          submodules: "recursive"
-          fetch-depth: 0
+          submodules: recursive
 
-      - name: Setup Java
-        uses: actions/setup-java@v5
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 26
+          java-version: 21
 
-      - name: Set up ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: ccache-${{ runner.os }}-${{ github.ref_name }}
-          restore-keys: |
-            ccache-${{ runner.os }}-${{ github.ref_name }}
-            ccache-${{ runner.os }}-
-            ccache-
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
-
-      - name: Build with Gradle
-        run: ./gradlew --parallel assembleRelease assembleDebug lintRelease --stacktrace
-
-      - name: Prepare artifact
-        id: prepareArtifact
+      - name: Install NDK
         run: |
-          set -e
-          RELEASE_FILE=$(find out -name "*Release*.zip" | head -1)
-          DEBUG_FILE=$(find out -name "*Debug*.zip" | head -1)
+          sdkmanager "ndk;28.2.13676358"
 
-          if [[ -z "$RELEASE_FILE" || -z "$DEBUG_FILE" ]]; then
-            echo "::error::Could not find release or debug files in out/"
-            ls -la out/ || echo "out/ directory does not exist"
-            exit 1
-          fi
-
-          echo "releaseName=$(basename "$RELEASE_FILE" .zip)" >> "$GITHUB_OUTPUT"
-          echo "debugName=$(basename "$DEBUG_FILE" .zip)" >> "$GITHUB_OUTPUT"
-          echo "releaseFile=$RELEASE_FILE" >> "$GITHUB_OUTPUT"
-          echo "debugFile=$DEBUG_FILE" >> "$GITHUB_OUTPUT"
-
-      - name: Upload release
-        uses: actions/upload-artifact@v7
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          name: ${{ steps.prepareArtifact.outputs.releaseName }}
-          path: ${{ steps.prepareArtifact.outputs.releaseFile }}
-          retention-days: 30
-          archive: false
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
-      - name: Upload debug
-        uses: actions/upload-artifact@v7
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build module (Release)
+        run: ./gradlew zipRelease --stacktrace
+
+      - name: Upload module
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.prepareArtifact.outputs.debugName }}
-          path: ${{ steps.prepareArtifact.outputs.debugFile }}
-          retention-days: 7
-          archive: false
-
-      - name: Upload release mappings
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-mappings-${{ github.run_number }}
-          path: "./app/build/outputs/mapping/release"
-          retention-days: 30
-          compression-level: 9
-
-      - name: Summary
-        if: always()
-        run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Gradle Tasks**: assembleRelease, assembleDebug, lintRelease" >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ job.status }}" == "success" ]]; then
-            echo "- **Release Artifact**: ${{ steps.prepareArtifact.outputs.releaseName }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Debug Artifact**: ${{ steps.prepareArtifact.outputs.debugName }}" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  dependency-submission:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    permissions:
-      contents: write
-    steps:
-      - name: Check out
-        uses: actions/checkout@v7
-        with:
-          submodules: "recursive"
-
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 26
-
-      - name: Submit dependency graph
-        uses: gradle/actions/dependency-submission@v6.2.0
+          name: module-release
+          path: out/*.zip
+          if-no-files-found: error

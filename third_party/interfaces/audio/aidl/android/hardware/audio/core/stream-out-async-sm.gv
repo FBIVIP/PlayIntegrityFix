@@ -1,0 +1,110 @@
+// Copyright (C) 2022 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// To render: dot -Tpng stream-out-async-sm.gv -o stream-out-async-sm.png
+digraph stream_out_async_state_machine {
+    node [shape=point style=filled fillcolor=black width=0.5] I;
+    node [shape=doublecircle width=0.5] F;
+    node [shape=oval width=1];
+    node [fillcolor=lightgreen] STANDBY;  // buffer is empty
+    node [fillcolor=lightgreen] IDLE;     // buffer is empty
+    node [fillcolor=tomato] CLOSED;
+    node [fillcolor=tomato] ERROR;
+    node [style=dashed] ANY_STATE;
+    node [fillcolor=lightblue style=filled];
+    // Note that when the consumer (h/w) is passive, "burst" operations
+    // complete synchronously, bypassing the TRANSFERRING state.
+    I -> STANDBY;
+    STANDBY -> IDLE [label="start"];                  // consumer -> active
+    STANDBY -> PAUSED [label="burst"];                // producer -> active
+    IDLE -> STANDBY [label="standby"];                // consumer -> passive
+    IDLE -> TRANSFERRING [label="burst"];             // producer -> active
+    IDLE -> ACTIVE [label="burst"];                   // full write
+    ACTIVE -> PAUSED [label="pause"];                 // consumer -> passive (not consuming)
+    ACTIVE -> DRAINING [label="drain(ALL)"];          // producer -> passive
+    ACTIVE -> DRAINING_en [label="drain(EARLY_NOTIFY)"];  // prepare for clip transition
+    ACTIVE -> TRANSFERRING [label="burst"];           // early unblocking
+    ACTIVE -> ACTIVE [label="burst"];                 // full write
+    TRANSFERRING -> ACTIVE [label="←IStreamCallback.onTransferReady"];
+    TRANSFERRING -> TRANSFER_PAUSED [label="pause"];  // consumer -> passive (not consuming)
+    TRANSFERRING -> DRAINING [label="drain(ALL)"];    // producer -> passive
+    TRANSFERRING -> DRAINING_en [label="drain(EARLY_NOTIFY)"]; // prepare for clip transition
+    TRANSFER_PAUSED -> TRANSFERRING [label="start"];  // consumer -> active
+    TRANSFER_PAUSED -> DRAIN_PAUSED [label="drain(ALL)"];  // producer -> passive
+    TRANSFER_PAUSED -> IDLE [label="flush"];          // buffer is cleared
+    PAUSED -> PAUSED [label="burst"];
+    PAUSED -> ACTIVE [label="start"];                 // consumer -> active
+    PAUSED -> IDLE [label="flush"];                   // producer -> passive, buffer is cleared
+    DRAINING -> IDLE [label="←IStreamCallback.onDrainReady"];
+    DRAINING -> TRANSFERRING [label="burst"];         // producer -> active
+    DRAINING -> ACTIVE [label="burst"];               // full write
+    DRAINING -> DRAIN_PAUSED [label="pause"];         // consumer -> passive (not consuming)
+    DRAIN_PAUSED -> DRAINING [label="start"];         // consumer -> active
+    DRAIN_PAUSED -> TRANSFER_PAUSED [label="burst"];  // producer -> active
+    DRAIN_PAUSED -> IDLE [label="flush"];             // buffer is cleared
+    // Note that the states in both clusters are combined with 'DRAINING' and 'DRAIN_PAUSED'
+    // state at the API level. The 'en' and 'en_sent' attributes only belong to the internal
+    // state of the stream and are not observable outside.
+    subgraph cluster_early_notify_entering {
+        // The stream is preparing for a transition between two clips. After
+        // receiving 'drain(EARLY_NOTIFY)' command, the stream continues playing
+        // the current clip, and at some point notifies the client that it is
+        // ready for the next clip data by issuing the first 'onDrainReady'
+        // callback.
+        label="EARLY_NOTIFY (entering)";
+        color=gray;
+        // Getting 'burst' or 'flush' command in these states resets the "clip
+        // transition" mode.
+        DRAINING_en;
+        DRAIN_PAUSED_en;
+    }
+    subgraph cluster_early_notify_notification_sent {
+        // After the stream has sent "onDrainReady", the client can now send
+        // 'burst' commands with the data of the next clip. These 'bursts' are
+        // always "early unblocking" because the previous clip is still playing
+        // thus the stream is unable to play any of the received data
+        // synchronously (in other words, it can not do a "full write"). To
+        // indicate readiness to accept the next burst the stream uses the usual
+        // 'onTransferReady' callback.
+        label="EARLY_NOTIFY (notification sent)";
+        color=gray;
+        // The state machine remains in these states until the current clip ends
+        // playing. When it ends, the stream sends 'onDrainReady' (note that
+        // it's the second 'onDrainReady' for the same 'drain(EARLY_NOTIFY)'),
+        // and transitions either to 'IDLE' if there is no data for the next
+        // clip, or to 'TRANSFERRING' otherwise. Note that it can not transition
+        // to 'ACTIVE' because that transition is associated with
+        // 'onTransferReady' callback.
+        DRAINING_en_sent;
+        DRAIN_PAUSED_en_sent;
+    }
+    DRAINING_en -> TRANSFERRING [label="burst"];                  // producer -> active
+    DRAINING_en -> ACTIVE [label="burst"];                        // full write
+    DRAINING_en -> DRAIN_PAUSED_en [label="pause"];               // consumer -> passive (not consuming)
+    DRAINING_en -> DRAINING_en_sent [label="←IStreamCallback.onDrainReady"];
+    DRAIN_PAUSED_en -> DRAINING_en [label="start"];               // consumer -> active
+    DRAIN_PAUSED_en -> TRANSFER_PAUSED [label="burst"];           // producer -> active
+    DRAIN_PAUSED_en -> IDLE [label="flush"];                      // buffer is cleared
+    DRAINING_en_sent -> DRAINING_en_sent [label="burst"];
+    DRAINING_en_sent -> DRAINING_en_sent [label="←IStreamCallback.onTransferReady"];
+    DRAINING_en_sent -> DRAIN_PAUSED_en_sent [label="pause"];     // consumer -> passive (not consuming)
+    DRAINING_en_sent -> TRANSFERRING [label="←IStreamCallback.onDrainReady"];
+    DRAINING_en_sent -> IDLE [label="←IStreamCallback.onDrainReady"];
+    DRAIN_PAUSED_en_sent -> DRAINING_en_sent [label="start"];     // consumer -> active
+    DRAIN_PAUSED_en_sent -> DRAIN_PAUSED_en_sent [label="burst"]; // producer -> active
+    DRAIN_PAUSED_en_sent -> IDLE [label="flush"];                 // buffer is cleared
+    ANY_STATE -> ERROR [label="←IStreamCallback.onError"];
+    ANY_STATE -> CLOSED [label="→IStream*.close"];
+    CLOSED -> F;
+}
