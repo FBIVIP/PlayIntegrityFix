@@ -2,7 +2,7 @@
 //
 // Built as an Android application so AGP's R8 pass shrinks the bundled BouncyCastle
 // down to a single classes.dex (app_process runs that dex at boot). The C/C++
-// interceptors (inject, teesim_keymint, teesim_keystore) build through AGP's
+// interceptors (inject, fateh7_keymint, fateh7_keystore) build through AGP's
 // externalNativeBuild against the repo-root CMakeLists.txt, which also drives the
 // Rust TA (rust/build.sh) via its rust_ta target and links a self-contained static
 // BoringSSL. Packaging mirrors both build variants: `prepareModuleFiles<Variant>`
@@ -57,7 +57,7 @@ android {
                 abiFilters += listOf("arm64-v8a", "x86_64")
                 // Match package.sh: build the injector and both interceptors; the
                 // static BoringSSL `crypto` target builds transitively for keystore.
-                targets += listOf("inject", "teesim_keymint", "teesim_keystore")
+                targets += listOf("inject", "fateh7_keymint", "fateh7_keystore")
             }
         }
     }
